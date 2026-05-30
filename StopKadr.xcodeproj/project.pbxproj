@@ -1,0 +1,415 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BF0000010000000000000001 /* StopKadrApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000001 /* StopKadrApp.swift */; };
+		BF0000010000000000000002 /* ExportResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000002 /* ExportResolution.swift */; };
+		BF0000010000000000000003 /* ProjectSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000003 /* ProjectSettings.swift */; };
+		BF0000010000000000000004 /* FrameItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000004 /* FrameItem.swift */; };
+		BF0000010000000000000005 /* StopMotionProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000005 /* StopMotionProject.swift */; };
+		BF0000010000000000000006 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000006 /* ProjectStore.swift */; };
+		BF0000010000000000000007 /* CameraPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000007 /* CameraPermissionManager.swift */; };
+		BF0000010000000000000008 /* CameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000008 /* CameraService.swift */; };
+		BF0000010000000000000009 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000009 /* CameraPreviewView.swift */; };
+		BF000001000000000000000A /* CameraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000000A /* CameraViewModel.swift */; };
+		BF000001000000000000000B /* ProjectListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000000B /* ProjectListView.swift */; };
+		BF000001000000000000000C /* NewProjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000000C /* NewProjectView.swift */; };
+		BF000001000000000000000D /* ProjectEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000000D /* ProjectEditorView.swift */; };
+		BF000001000000000000000E /* FrameTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000000E /* FrameTimelineView.swift */; };
+		BF000001000000000000000F /* FrameThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000000F /* FrameThumbnailView.swift */; };
+		BF0000010000000000000010 /* FrameActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000010 /* FrameActionsView.swift */; };
+		BF0000010000000000000011 /* PlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000011 /* PlaybackView.swift */; };
+		BF0000010000000000000012 /* PlaybackViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000012 /* PlaybackViewModel.swift */; };
+		BF0000010000000000000013 /* VideoExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000013 /* VideoExporter.swift */; };
+		BF0000010000000000000014 /* ExportSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000014 /* ExportSettingsView.swift */; };
+		BF0000010000000000000015 /* CaptureButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000015 /* CaptureButton.swift */; };
+		BF0000010000000000000016 /* OnionSkinControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000016 /* OnionSkinControl.swift */; };
+		BF0000010000000000000017 /* FPSControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000017 /* FPSControl.swift */; };
+		BF0000010000000000000018 /* CameraGridOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000018 /* CameraGridOverlay.swift */; };
+		BF0000010000000000000019 /* SettingsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR0000010000000000000019 /* SettingsPanel.swift */; };
+		BF000001000000000000001A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000001A /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		FR0000010000000000000001 /* StopKadrApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopKadrApp.swift; sourceTree = "<group>"; };
+		FR0000010000000000000002 /* ExportResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportResolution.swift; sourceTree = "<group>"; };
+		FR0000010000000000000003 /* ProjectSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSettings.swift; sourceTree = "<group>"; };
+		FR0000010000000000000004 /* FrameItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameItem.swift; sourceTree = "<group>"; };
+		FR0000010000000000000005 /* StopMotionProject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopMotionProject.swift; sourceTree = "<group>"; };
+		FR0000010000000000000006 /* ProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStore.swift; sourceTree = "<group>"; };
+		FR0000010000000000000007 /* CameraPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPermissionManager.swift; sourceTree = "<group>"; };
+		FR0000010000000000000008 /* CameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraService.swift; sourceTree = "<group>"; };
+		FR0000010000000000000009 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		FR000001000000000000000A /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
+		FR000001000000000000000B /* ProjectListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectListView.swift; sourceTree = "<group>"; };
+		FR000001000000000000000C /* NewProjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewProjectView.swift; sourceTree = "<group>"; };
+		FR000001000000000000000D /* ProjectEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectEditorView.swift; sourceTree = "<group>"; };
+		FR000001000000000000000E /* FrameTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameTimelineView.swift; sourceTree = "<group>"; };
+		FR000001000000000000000F /* FrameThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameThumbnailView.swift; sourceTree = "<group>"; };
+		FR0000010000000000000010 /* FrameActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameActionsView.swift; sourceTree = "<group>"; };
+		FR0000010000000000000011 /* PlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackView.swift; sourceTree = "<group>"; };
+		FR0000010000000000000012 /* PlaybackViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackViewModel.swift; sourceTree = "<group>"; };
+		FR0000010000000000000013 /* VideoExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExporter.swift; sourceTree = "<group>"; };
+		FR0000010000000000000014 /* ExportSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSettingsView.swift; sourceTree = "<group>"; };
+		FR0000010000000000000015 /* CaptureButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureButton.swift; sourceTree = "<group>"; };
+		FR0000010000000000000016 /* OnionSkinControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnionSkinControl.swift; sourceTree = "<group>"; };
+		FR0000010000000000000017 /* FPSControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPSControl.swift; sourceTree = "<group>"; };
+		FR0000010000000000000018 /* CameraGridOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraGridOverlay.swift; sourceTree = "<group>"; };
+		FR0000010000000000000019 /* SettingsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanel.swift; sourceTree = "<group>"; };
+		FR000001000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FR000001000000000000001B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FR000001000000000000001C /* StopKadr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StopKadr.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FP0000010000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		GR0000010000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				GR0000010000000000000002 /* StopKadr */,
+				GR0000010000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000002 /* StopKadr */ = {
+			isa = PBXGroup;
+			children = (
+				GR0000010000000000000004 /* App */,
+				GR0000010000000000000005 /* Models */,
+				GR0000010000000000000006 /* Camera */,
+				GR0000010000000000000007 /* Project */,
+				GR0000010000000000000008 /* Timeline */,
+				GR0000010000000000000009 /* Playback */,
+				GR000001000000000000000A /* Export */,
+				GR000001000000000000000B /* UI */,
+				FR000001000000000000001A /* Assets.xcassets */,
+				FR000001000000000000001B /* Info.plist */,
+			);
+			path = StopKadr;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FR000001000000000000001C /* StopKadr.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000001 /* StopKadrApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000005 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000002 /* ExportResolution.swift */,
+				FR0000010000000000000003 /* ProjectSettings.swift */,
+				FR0000010000000000000004 /* FrameItem.swift */,
+				FR0000010000000000000005 /* StopMotionProject.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000006 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000007 /* CameraPermissionManager.swift */,
+				FR0000010000000000000008 /* CameraService.swift */,
+				FR0000010000000000000009 /* CameraPreviewView.swift */,
+				FR000001000000000000000A /* CameraViewModel.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000007 /* Project */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000006 /* ProjectStore.swift */,
+				FR000001000000000000000B /* ProjectListView.swift */,
+				FR000001000000000000000C /* NewProjectView.swift */,
+				FR000001000000000000000D /* ProjectEditorView.swift */,
+			);
+			path = Project;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000008 /* Timeline */ = {
+			isa = PBXGroup;
+			children = (
+				FR000001000000000000000E /* FrameTimelineView.swift */,
+				FR000001000000000000000F /* FrameThumbnailView.swift */,
+				FR0000010000000000000010 /* FrameActionsView.swift */,
+			);
+			path = Timeline;
+			sourceTree = "<group>";
+		};
+		GR0000010000000000000009 /* Playback */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000011 /* PlaybackView.swift */,
+				FR0000010000000000000012 /* PlaybackViewModel.swift */,
+			);
+			path = Playback;
+			sourceTree = "<group>";
+		};
+		GR000001000000000000000A /* Export */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000013 /* VideoExporter.swift */,
+				FR0000010000000000000014 /* ExportSettingsView.swift */,
+			);
+			path = Export;
+			sourceTree = "<group>";
+		};
+		GR000001000000000000000B /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				FR0000010000000000000015 /* CaptureButton.swift */,
+				FR0000010000000000000016 /* OnionSkinControl.swift */,
+				FR0000010000000000000017 /* FPSControl.swift */,
+				FR0000010000000000000018 /* CameraGridOverlay.swift */,
+				FR0000010000000000000019 /* SettingsPanel.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		TG0000010000000000000001 /* StopKadr */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CL0000010000000000000002 /* Build configuration list for PBXNativeTarget "StopKadr" */;
+			buildPhases = (
+				SO0000010000000000000001 /* Sources */,
+				FP0000010000000000000001 /* Frameworks */,
+				RE0000010000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StopKadr;
+			productName = StopKadr;
+			productReference = FR000001000000000000001C /* StopKadr.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		PR0000010000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					TG0000010000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = CL0000010000000000000001 /* Build configuration list for PBXProject "StopKadr" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = GR0000010000000000000001;
+			productRefGroup = GR0000010000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				TG0000010000000000000001 /* StopKadr */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		RE0000010000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF000001000000000000001A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		SO0000010000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF0000010000000000000001 /* StopKadrApp.swift in Sources */,
+				BF0000010000000000000002 /* ExportResolution.swift in Sources */,
+				BF0000010000000000000003 /* ProjectSettings.swift in Sources */,
+				BF0000010000000000000004 /* FrameItem.swift in Sources */,
+				BF0000010000000000000005 /* StopMotionProject.swift in Sources */,
+				BF0000010000000000000006 /* ProjectStore.swift in Sources */,
+				BF0000010000000000000007 /* CameraPermissionManager.swift in Sources */,
+				BF0000010000000000000008 /* CameraService.swift in Sources */,
+				BF0000010000000000000009 /* CameraPreviewView.swift in Sources */,
+				BF000001000000000000000A /* CameraViewModel.swift in Sources */,
+				BF000001000000000000000B /* ProjectListView.swift in Sources */,
+				BF000001000000000000000C /* NewProjectView.swift in Sources */,
+				BF000001000000000000000D /* ProjectEditorView.swift in Sources */,
+				BF000001000000000000000E /* FrameTimelineView.swift in Sources */,
+				BF000001000000000000000F /* FrameThumbnailView.swift in Sources */,
+				BF0000010000000000000010 /* FrameActionsView.swift in Sources */,
+				BF0000010000000000000011 /* PlaybackView.swift in Sources */,
+				BF0000010000000000000012 /* PlaybackViewModel.swift in Sources */,
+				BF0000010000000000000013 /* VideoExporter.swift in Sources */,
+				BF0000010000000000000014 /* ExportSettingsView.swift in Sources */,
+				BF0000010000000000000015 /* CaptureButton.swift in Sources */,
+				BF0000010000000000000016 /* OnionSkinControl.swift in Sources */,
+				BF0000010000000000000017 /* FPSControl.swift in Sources */,
+				BF0000010000000000000018 /* CameraGridOverlay.swift in Sources */,
+				BF0000010000000000000019 /* SettingsPanel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		CF0000010000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CF0000010000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CF0000010000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StopKadr/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.obefree.StopKadr;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		CF0000010000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StopKadr/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.obefree.StopKadr;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CL0000010000000000000001 /* Build configuration list for PBXProject "StopKadr" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF0000010000000000000001 /* Debug */,
+				CF0000010000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CL0000010000000000000002 /* Build configuration list for PBXNativeTarget "StopKadr" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF0000010000000000000003 /* Debug */,
+				CF0000010000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = PR0000010000000000000001 /* Project object */;
+}
