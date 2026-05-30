@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
+  LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -18,14 +19,46 @@ export default function PlaybackScreen({ navigation, route }: Props) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [fps, setFps] = useState(12);
+  /** Держим предыдущий кадр, пока следующий не в кэше — без чёрных вспышек */
+  const [visibleUri, setVisibleUri] = useState<string | null>(null);
+  const [scrubWidth, setScrubWidth] = useState(300);
+  const prefetching = useRef(false);
 
   useEffect(() => {
     loadProject(projectId).then((p) => {
       if (!p) return;
       setFps(Math.max(1, p.settings.fps));
-      setUris(expandedFrameUris(p));
+      const list = expandedFrameUris(p);
+      setUris(list);
+      setIndex(0);
+      if (list.length === 0) {
+        setVisibleUri(null);
+        return;
+      }
+      prefetching.current = true;
+      Promise.all(list.map((u) => Image.prefetch(u)))
+        .catch(() => {})
+        .finally(() => {
+          prefetching.current = false;
+          setVisibleUri(list[0]);
+        });
     });
   }, [projectId]);
+
+  useEffect(() => {
+    const uri = uris[index];
+    if (!uri) return;
+    if (uri === visibleUri) return;
+    let active = true;
+    Image.prefetch(uri)
+      .catch(() => {})
+      .finally(() => {
+        if (active) setVisibleUri(uri);
+      });
+    return () => {
+      active = false;
+    };
+  }, [index, uris]);
 
   useEffect(() => {
     if (!playing || uris.length === 0) return;
@@ -35,14 +68,19 @@ export default function PlaybackScreen({ navigation, route }: Props) {
     return () => clearInterval(id);
   }, [playing, uris.length, fps]);
 
-  const uri = uris[index];
+  const onScrubLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0) setScrubWidth(w);
+  };
 
   return (
     <View style={styles.root}>
-      {uri ? (
-        <Image source={{ uri }} style={styles.image} resizeMode="contain" />
-      ) : (
+      {visibleUri ? (
+        <Image source={{ uri: visibleUri }} style={styles.image} resizeMode="contain" />
+      ) : uris.length === 0 ? (
         <Text style={styles.empty}>Нет кадров</Text>
+      ) : (
+        <View style={styles.image} />
       )}
       <View style={styles.bar}>
         <Pressable onPress={() => navigation.goBack()}>
@@ -57,14 +95,20 @@ export default function PlaybackScreen({ navigation, route }: Props) {
       </View>
       <Pressable
         style={styles.scrub}
+        onLayout={onScrubLayout}
         onPress={(e) => {
+          if (!uris.length) return;
           const x = e.nativeEvent.locationX;
-          const w = 300;
-          const next = Math.floor((x / w) * uris.length);
+          const next = Math.floor((x / scrubWidth) * uris.length);
           setIndex(Math.min(uris.length - 1, Math.max(0, next)));
         }}
       >
-        <View style={[styles.scrubFill, { width: uris.length ? `${((index + 1) / uris.length) * 100}%` : '0%' }]} />
+        <View
+          style={[
+            styles.scrubFill,
+            { width: uris.length ? `${((index + 1) / uris.length) * 100}%` : '0%' },
+          ]}
+        />
       </Pressable>
     </View>
   );
@@ -72,7 +116,7 @@ export default function PlaybackScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
-  image: { flex: 1, width: '100%' },
+  image: { flex: 1, width: '100%', backgroundColor: '#000' },
   empty: { flex: 1, textAlign: 'center', textAlignVertical: 'center', color: '#888' },
   bar: {
     flexDirection: 'row',

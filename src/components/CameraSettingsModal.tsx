@@ -192,6 +192,22 @@ export function CameraSettingsModal({
 
             <Pressable
               style={styles.toggleRow}
+              onPress={() =>
+                setCam({ shutterSoundEnabled: !Boolean(local.settings.shutterSoundEnabled) })
+              }
+            >
+              <Text style={styles.toggleText}>Звук затвора</Text>
+              <Text style={styles.toggleText}>
+                {local.settings.shutterSoundEnabled ? 'Вкл' : 'Выкл'}
+              </Text>
+            </Pressable>
+            <Text style={styles.hint}>
+              По умолчанию выкл. На Android при «Вкл» — звук приложения; в беззвучном режиме телефона
+              система может всё равно молчать.
+            </Text>
+
+            <Pressable
+              style={styles.toggleRow}
               onPress={() => setCam({ mirrorFrontCamera: !local.settings.mirrorFrontCamera })}
             >
               <Text style={styles.toggleText}>Зеркало (фронт)</Text>

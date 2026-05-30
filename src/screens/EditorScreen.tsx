@@ -54,11 +54,23 @@ export default function EditorScreen({ navigation, route }: Props) {
   const [exportProgress, setExportProgress] = useState(0);
   const [syncOpen, setSyncOpen] = useState(false);
   const [liveZoom, setLiveZoom] = useState(0);
+  const [focusPulse, setFocusPulse] = useState(false);
+  const focusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleFocusAt = useCallback(() => {
+    if (focusTimer.current) clearTimeout(focusTimer.current);
+    setFocusPulse(true);
+    focusTimer.current = setTimeout(() => setFocusPulse(false), 700);
+  }, []);
 
   const refresh = useCallback(async () => {
     const p = await loadProject(projectId);
     setProject(p);
   }, [projectId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     const unsub = navigation.addListener('focus', refresh);
@@ -259,7 +271,11 @@ export default function EditorScreen({ navigation, route }: Props) {
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
   const mirror = s.cameraFacing === 'front' && s.mirrorFrontCamera;
 
-  const autofocus: FocusMode = Platform.OS === 'android' ? 'off' : s.continuousAutofocus ? 'off' : 'on';
+  const autofocus: FocusMode = focusPulse
+    ? 'on'
+    : s.continuousAutofocus
+      ? 'off'
+      : 'on';
 
   const commitZoom = (z: number) => {
     setLiveZoom(z);
@@ -281,6 +297,7 @@ export default function EditorScreen({ navigation, route }: Props) {
           flash={s.flash}
           enableTorch={s.enableTorch}
           autofocus={autofocus}
+          shutterSoundEnabled={s.shutterSoundEnabled === true}
           onionUri={onionUri}
           onionOpacity={s.onionSkinOpacity}
           showOnion={!capturing && Boolean(onionUri)}
@@ -290,16 +307,10 @@ export default function EditorScreen({ navigation, route }: Props) {
           onMountError={onMountError}
           onZoomChange={setZoomLocal}
           onZoomCommit={commitZoom}
-          onFocusAt={() => {}}
+          onFocusAt={handleFocusAt}
           pictureSize={Platform.OS === 'ios' ? s.pictureSize || undefined : undefined}
           selectedLens={Platform.OS === 'ios' ? s.selectedLens || undefined : undefined}
         />
-
-        {Platform.OS === 'ios' ? (
-          <Text style={[styles.zoomHint, { top: insets.top + 48 }]}>
-            {Math.round(liveZoom * 100)}% · щипок / свайп
-          </Text>
-        ) : null}
 
         {reshootTarget ? (
           <View style={[styles.reshootBanner, { top: insets.top + 44 }]}>
@@ -453,13 +464,6 @@ const styles = StyleSheet.create({
   permissionBtn: { backgroundColor: '#ffeb3b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   permissionBtnText: { color: '#0a0a0f', fontWeight: '600' },
   cameraWrap: { flex: 1, width: '100%', backgroundColor: '#000' },
-  zoomHint: {
-    position: 'absolute',
-    alignSelf: 'center',
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 11,
-    zIndex: 2,
-  },
   topBar: {
     position: 'absolute',
     right: 12,

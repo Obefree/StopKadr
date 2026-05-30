@@ -9,9 +9,8 @@ import { ANDROID_SENSOR_ASPECT, previewCoverScale } from './androidPreviewCover'
 import { GridOverlay } from '../components/GridOverlay';
 import { OnionSkinOverlay } from '../components/OnionSkinOverlay';
 import { CameraGestureOverlay } from '../components/CameraGestureOverlay';
-import { AndroidZoomControls } from '../components/android/AndroidZoomControls';
 
-export const CAMERA_BUILD = 'frame-wysiwyg-0.5.4-cover';
+export const CAMERA_BUILD = 'frame-wysiwyg-0.5.6';
 
 type CameraRef = React.ElementRef<typeof CameraView> | null;
 type Px = { w: number; h: number };
@@ -30,6 +29,7 @@ type Props = {
   flash: CameraFlash;
   enableTorch: boolean;
   autofocus: FocusMode;
+  shutterSoundEnabled: boolean;
   onionUri: string | null;
   onionOpacity: number;
   showOnion: boolean;
@@ -39,12 +39,11 @@ type Props = {
   onMountError: (event: { message: string }) => void;
   onZoomChange: (z: number) => void;
   onZoomCommit: (z: number) => void;
-  onFocusAt?: (x: number, y: number) => void;
+  onFocusAt: (x: number, y: number) => void;
   pictureSize?: string;
   selectedLens?: string;
 };
 
-/** Жёлтая рамка = кадр. Android: cover-масштаб как у onion (cover). */
 export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function EditorCamera(
   props,
   ref,
@@ -58,6 +57,7 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
     flash,
     enableTorch,
     autofocus,
+    shutterSoundEnabled,
     onionUri,
     onionOpacity,
     showOnion,
@@ -93,6 +93,7 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
         quality: Math.min(1, Math.max(0.5, quality)),
         skipProcessing: false,
         exif: false,
+        shutterSound: shutterSoundEnabled === true,
       });
       if (!photo?.uri) throw new Error('Нет файла с камеры');
       const pw = photo.width ?? 0;
@@ -143,6 +144,7 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
               flash={flash}
               enableTorch={enableTorch}
               ratio={isAndroid ? undefined : ratio}
+              animateShutter={shutterSoundEnabled === true}
               pictureSize={pictureSize}
               selectedLens={selectedLens}
               responsiveOrientationWhenOrientationLocked={!isAndroid}
@@ -161,21 +163,16 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
 
         {showGrid ? <GridOverlay divisions={gridDivisions} /> : null}
 
-        {isAndroid ? (
-          <>
-            <AndroidZoomControls zoom={zoom} onZoomChange={onZoomChange} onCommit={onZoomCommit} />
-            <Text style={styles.tag}>{tag}</Text>
-          </>
-        ) : (
-          <CameraGestureOverlay
-            zoom={zoom}
-            onZoomChange={onZoomChange}
-            onZoomCommit={onZoomCommit}
-            onFocusAt={onFocusAt ?? (() => {})}
-          >
-            <Text style={styles.tag}>{tag}</Text>
-          </CameraGestureOverlay>
-        )}
+        <CameraGestureOverlay
+          zoom={zoom}
+          onZoomChange={onZoomChange}
+          onZoomCommit={onZoomCommit}
+          onFocusAt={onFocusAt}
+        />
+
+        <Text style={styles.tag} pointerEvents="none">
+          {tag}
+        </Text>
       </View>
     </View>
   );

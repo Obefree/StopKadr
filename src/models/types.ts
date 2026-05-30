@@ -28,6 +28,8 @@ export interface ProjectSettings {
   zoom: number;
   flash: CameraFlash;
   enableTorch: boolean;
+  /** Звук затвора при съёмке (по умолчанию выкл) */
+  shutterSoundEnabled: boolean;
   /** iOS: builtInWideAngleCamera и др. Пусто = системный по умолчанию */
   selectedLens: string;
   mirrorFrontCamera: boolean;
@@ -69,6 +71,7 @@ export const defaultSettings = (): ProjectSettings => ({
   zoom: 0,
   flash: 'off',
   enableTorch: false,
+  shutterSoundEnabled: false,
   selectedLens: '',
   mirrorFrontCamera: true,
   responsiveOrientation: true,
@@ -79,6 +82,9 @@ export function mergeProjectSettings(partial?: Partial<ProjectSettings>): Projec
   const merged = { ...defaultSettings(), ...partial };
   if (partial?.continuousAutofocus === undefined && partial?.lockFocus !== undefined) {
     merged.continuousAutofocus = !partial.lockFocus;
+  }
+  if (partial?.shutterSoundEnabled === undefined) {
+    merged.shutterSoundEnabled = false;
   }
   return merged;
 }

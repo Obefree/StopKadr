@@ -9,18 +9,14 @@ type Props = {
   onZoomChange: (z: number) => void;
   onZoomCommit: (z: number) => void;
   onFocusAt: (x: number, y: number) => void;
-  children?: React.ReactNode;
 };
 
-/**
- * Pinch + vertical drag = zoom. Long press = focus at point.
- */
+/** Щипок и свайп вверх/вниз = зум. Долгое нажатие = фокус в точке. */
 export function CameraGestureOverlay({
   zoom,
   onZoomChange,
   onZoomCommit,
   onFocusAt,
-  children,
 }: Props) {
   const [focus, setFocus] = useState<FocusPoint>({ x: 0, y: 0, visible: false });
   const zoomBase = useRef(zoom);
@@ -45,8 +41,7 @@ export function CameraGestureOverlay({
       zoomBase.current = zoomRef.current;
     })
     .onUpdate((e) => {
-      const next = clamp(zoomBase.current * e.scale);
-      onZoomChange(next);
+      onZoomChange(clamp(zoomBase.current * e.scale));
     })
     .onEnd((e) => {
       const next = clamp(zoomBase.current * e.scale);
@@ -56,43 +51,35 @@ export function CameraGestureOverlay({
 
   const panZoom = Gesture.Pan()
     .maxPointers(1)
-    .minDistance(8)
+    .minDistance(12)
     .onBegin(() => {
       zoomBase.current = zoomRef.current;
     })
     .onUpdate((e) => {
-      const next = clamp(zoomBase.current - e.translationY / 420);
-      onZoomChange(next);
+      onZoomChange(clamp(zoomBase.current - e.translationY / 360));
     })
     .onEnd((e) => {
-      const next = clamp(zoomBase.current - e.translationY / 420);
+      const next = clamp(zoomBase.current - e.translationY / 360);
       onZoomCommit(next);
       zoomBase.current = next;
     });
 
   const longPress = Gesture.LongPress()
-    .minDuration(380)
-    .maxDistance(16)
+    .minDuration(400)
+    .maxDistance(20)
     .onStart((e) => {
       showFocus(e.x, e.y);
     });
 
-  const gesture = Gesture.Simultaneous(
-    longPress,
-    Gesture.Race(pinch, panZoom),
-  );
+  const gesture = Gesture.Simultaneous(longPress, Gesture.Race(pinch, panZoom));
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={StyleSheet.absoluteFill} collapsable={false} pointerEvents="box-none">
-        {children}
+      <View style={StyleSheet.absoluteFill} collapsable={false}>
         {focus.visible ? (
           <View
             pointerEvents="none"
-            style={[
-              styles.focusRing,
-              { left: focus.x - 36, top: focus.y - 36 },
-            ]}
+            style={[styles.focusRing, { left: focus.x - 36, top: focus.y - 36 }]}
           />
         ) : null}
       </View>
