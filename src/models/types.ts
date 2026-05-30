@@ -17,6 +17,8 @@ export interface ProjectSettings {
   lockFocus: boolean;
   lockExposure: boolean;
   lockWhiteBalance: boolean;
+  /** true = непрерывный автофокус; false = фиксация, фокус по долгому нажатию */
+  continuousAutofocus: boolean;
   /** Камера */
   cameraFacing: CameraFacing;
   cameraRatio: CameraRatio;
@@ -59,6 +61,7 @@ export const defaultSettings = (): ProjectSettings => ({
   lockFocus: false,
   lockExposure: false,
   lockWhiteBalance: false,
+  continuousAutofocus: true,
   cameraFacing: 'back',
   cameraRatio: '16:9',
   pictureSize: '',
@@ -73,7 +76,11 @@ export const defaultSettings = (): ProjectSettings => ({
 
 /** Старые project.json без полей камеры */
 export function mergeProjectSettings(partial?: Partial<ProjectSettings>): ProjectSettings {
-  return { ...defaultSettings(), ...partial };
+  const merged = { ...defaultSettings(), ...partial };
+  if (partial?.continuousAutofocus === undefined && partial?.lockFocus !== undefined) {
+    merged.continuousAutofocus = !partial.lockFocus;
+  }
+  return merged;
 }
 export function sortFrames(project: StopMotionProject): FrameItem[] {
   return [...project.frames].sort((a, b) => a.index - b.index);

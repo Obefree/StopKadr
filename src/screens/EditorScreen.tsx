@@ -22,14 +22,23 @@ import {
   deleteLastFrame,
   frameUri,
   loadProject,
-  replaceLastFrame,
+  replaceFrame,
   saveProject,
 } from '../store/projectStore';
 import { Timeline } from '../components/Timeline';
 import { GridOverlay } from '../components/GridOverlay';
 import { CameraSettingsModal } from '../components/CameraSettingsModal';
+import { CameraGestureOverlay } from '../components/CameraGestureOverlay';
+import {
+  CameraPreviewViewport,
+  overlayResizeMode,
+} from '../components/CameraPreviewViewport';
+import { ThumbSlider } from '../components/ThumbSlider';
+import { StepperControl } from '../components/StepperControl';
+import type { FocusMode } from 'expo-camera';
 import { exportProjectToMp4 } from '../export/videoExport';
 import { captureStill } from '../utils/capturePhoto';
+import { nativeCameraRatio, shouldCropCaptureToSquare } from '../utils/cameraRatio';
 import { saveVideoToDevice } from '../utils/mediaSave';
 import { SyncSheet } from '../components/SyncSheet';
 import { useCameraCapabilities } from '../hooks/useCameraCapabilities';
@@ -44,12 +53,15 @@ export default function EditorScreen({ navigation, route }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [project, setProject] = useState<Awaited<ReturnType<typeof loadProject>>>(null);
   const [capturing, setCapturing] = useState(false);
-  const [reshoot, setReshoot] = useState(false);
+  const [reshootFrameId, setReshootFrameId] = useState<string | null>(null);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [liveZoom, setLiveZoom] = useState(0);
+  const [focusPulse, setFocusPulse] = useState(false);
+  const focusPulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     const p = await loadProject(projectId);
@@ -67,6 +79,10 @@ export default function EditorScreen({ navigation, route }: Props) {
       deactivateKeepAwake('stopkadr-editor');
     };
   }, []);
+
+  React.useEffect(() => {
+    if (project) setLiveZoom(project.settings.zoom);
+  }, [project?.settings.zoom]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -124,7 +140,16 @@ export default function EditorScreen({ navigation, route }: Props) {
   const s = project.settings;
   const frames = sortFrames(project);
   const lf = lastFrame(project);
-  const onionUri = lf ? frameUri(project.id, lf.imagePath) : null;
+  const reshootTarget = reshootFrameId
+    ? frames.find((f) => f.id === reshootFrameId) ?? null
+    : null;
+  const onionFrame = reshootTarget
+    ? (() => {
+        const i = frames.findIndex((f) => f.id === reshootTarget.id);
+        return i > 0 ? frames[i - 1] : null;
+      })()
+    : lf;
+  const onionUri = onionFrame ? frameUri(project.id, onionFrame.imagePath) : null;
 
   const persistSettings = async (next: typeof project) => {
     const saved = await saveProject(next);
@@ -138,12 +163,18 @@ export default function EditorScreen({ navigation, route }: Props) {
       if (s.captureDelaySeconds > 0) {
         await new Promise((r) => setTimeout(r, s.captureDelaySeconds * 1000));
       }
-      const uri = await captureStill(cameraRef.current, s.captureQuality);
-      const updated = reshoot
-        ? await replaceLastFrame(project, uri)
-        : await addFrame(project, uri);
+      const uri = await captureStill(cameraRef.current, {
+        quality: s.captureQuality,
+        cropSquare: shouldCropCaptureToSquare(s.cameraRatio),
+      });
+      let updated = project;
+      if (reshootTarget) {
+        updated = await replaceFrame(project, reshootTarget, uri);
+        setReshootFrameId(null);
+      } else {
+        updated = await addFrame(project, uri);
+      }
       setProject(updated);
-      setReshoot(false);
     } catch (e) {
       Alert.alert('Ошибка', e instanceof Error ? e.message : 'Съёмка не удалась');
     } finally {
@@ -165,35 +196,130 @@ export default function EditorScreen({ navigation, route }: Props) {
   };
 
   const selected = frames.find((f) => f.id === selectedFrameId);
+
+  const startReshoot = (frameId?: string) => {
+    const id = frameId ?? selectedFrameId ?? frames.at(-1)?.id;
+    if (!id) return;
+    setReshootFrameId(id);
+    setSelectedFrameId(id);
+  };
+
+  const confirmDeleteFrame = (frame: (typeof frames)[0]) => {
+    Alert.alert(
+      'Удалить кадр?',
+      `Кадр №${frame.index} будет удалён без восстановления.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            const updated = await deleteFrame(project, frame);
+            setProject(updated);
+            if (selectedFrameId === frame.id) setSelectedFrameId(null);
+            if (reshootFrameId === frame.id) setReshootFrameId(null);
+          },
+        },
+      ],
+    );
+  };
+
+  const onFrameLongPress = (frame: (typeof frames)[0]) => {
+    setSelectedFrameId(frame.id);
+    Alert.alert(`Кадр №${frame.index}`, undefined, [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Переснять', onPress: () => startReshoot(frame.id) },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: () => confirmDeleteFrame(frame),
+      },
+    ]);
+  };
+
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
   const mirror = s.cameraFacing === 'front' && s.mirrorFrontCamera;
+
+  const onFocusAt = (_x: number, _y: number) => {
+    if (focusPulseTimer.current) clearTimeout(focusPulseTimer.current);
+    setFocusPulse(true);
+    focusPulseTimer.current = setTimeout(() => setFocusPulse(false), 320);
+  };
+
+  const autofocus: FocusMode = focusPulse
+    ? s.continuousAutofocus
+      ? 'on'
+      : 'off'
+    : s.continuousAutofocus
+      ? 'off'
+      : 'on';
+
+  const commitZoom = (z: number) => {
+    setLiveZoom(z);
+    persistSettings({ ...project, settings: { ...s, zoom: z } });
+  };
 
   return (
     <View style={styles.root}>
       <View style={styles.cameraWrap}>
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing={s.cameraFacing}
-          mirror={mirror}
-          zoom={s.zoom}
-          flash={s.flash}
-          enableTorch={s.enableTorch}
-          ratio={s.cameraRatio}
-          pictureSize={s.pictureSize || undefined}
-          selectedLens={s.selectedLens || undefined}
-          responsiveOrientationWhenOrientationLocked={s.responsiveOrientation}
-          onCameraReady={onCameraReady}
-          onAvailableLensesChanged={onAvailableLensesChanged}
-        />
-        {onionUri && s.onionSkinOpacity > 0 ? (
-          <Image
-            source={{ uri: onionUri }}
-            style={[StyleSheet.absoluteFill, styles.onion, { opacity: s.onionSkinOpacity }]}
-            resizeMode="cover"
+        <CameraPreviewViewport ratio={s.cameraRatio}>
+          <CameraView
+            key={`${s.cameraFacing}-${nativeCameraRatio(s.cameraRatio)}`}
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing={s.cameraFacing}
+            mirror={mirror}
+            zoom={liveZoom}
+            autofocus={autofocus}
+            flash={s.flash}
+            enableTorch={s.enableTorch}
+            ratio={nativeCameraRatio(s.cameraRatio)}
+            pictureSize={
+              s.cameraRatio === '1:1' && Platform.OS === 'android'
+                ? undefined
+                : s.pictureSize || undefined
+            }
+            selectedLens={s.selectedLens || undefined}
+            responsiveOrientationWhenOrientationLocked={s.responsiveOrientation}
+            onCameraReady={onCameraReady}
+            onAvailableLensesChanged={onAvailableLensesChanged}
           />
+          {onionUri && s.onionSkinOpacity > 0 ? (
+            <Image
+              source={{ uri: onionUri }}
+              style={[
+                StyleSheet.absoluteFill,
+                styles.onion,
+                { opacity: s.onionSkinOpacity },
+                mirror ? styles.onionMirror : null,
+              ]}
+              resizeMode={overlayResizeMode(s.cameraRatio)}
+            />
+          ) : null}
+          {s.showGrid ? <GridOverlay divisions={s.gridDivisions} /> : null}
+
+          <CameraGestureOverlay
+            zoom={liveZoom}
+            onZoomChange={setLiveZoom}
+            onZoomCommit={commitZoom}
+            onFocusAt={onFocusAt}
+          />
+        </CameraPreviewViewport>
+
+        <Text style={[styles.zoomHint, { top: insets.top + 48 }]}>
+          {Math.round(liveZoom * 100)}% · щипок / свайп
+        </Text>
+
+        {reshootTarget ? (
+          <View style={[styles.reshootBanner, { top: insets.top + 44 }]}>
+            <Text style={styles.reshootBannerText}>
+              Пересъёмка кадра №{reshootTarget.index} — нажмите затвор
+            </Text>
+            <Pressable onPress={() => setReshootFrameId(null)} hitSlop={8}>
+              <Text style={styles.reshootCancel}>Отмена</Text>
+            </Pressable>
+          </View>
         ) : null}
-        {s.showGrid ? <GridOverlay divisions={s.gridDivisions} /> : null}
 
         <View style={[styles.topBar, { top: insets.top + 8 }]}>
           <Pressable
@@ -222,39 +348,56 @@ export default function EditorScreen({ navigation, route }: Props) {
           <SmallBtn
             label="Удалить"
             disabled={!selected}
-            onPress={async () => {
-              if (!selected) return;
-              setProject(await deleteFrame(project, selected));
-              setSelectedFrameId(null);
-            }}
+            onPress={() => selected && confirmDeleteFrame(selected)}
           />
-          <SmallBtn label="Переснять" disabled={frames.length === 0} onPress={() => setReshoot(true)} />
+          <SmallBtn
+            label="Переснять"
+            disabled={frames.length === 0}
+            onPress={() => startReshoot()}
+          />
           <SmallBtn label="Play" disabled={frames.length === 0} onPress={() => navigation.navigate('Playback', { projectId })} />
           <SmallBtn label="Export" disabled={frames.length === 0 || exporting} onPress={onExport} />
         </View>
 
-        <Text style={styles.sliderLabel}>Onion {Math.round(s.onionSkinOpacity * 100)}%</Text>
-        <MiniSlider
-          value={s.onionSkinOpacity}
-          onChange={(v) => persistSettings({ ...project, settings: { ...s, onionSkinOpacity: v } })}
-        />
+        <View style={styles.sliders}>
+          <ThumbSlider
+            label="Onion skin"
+            value={s.onionSkinOpacity}
+            minimumValue={0}
+            maximumValue={1}
+            step={0.01}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={(v) => setProject({ ...project, settings: { ...s, onionSkinOpacity: v } })}
+            onChangeEnd={(v) =>
+              persistSettings({ ...project, settings: { ...s, onionSkinOpacity: v } })
+            }
+          />
+          <StepperControl
+            label="FPS"
+            value={s.fps}
+            step={0.5}
+            min={1}
+            max={60}
+            format={(v) => v.toFixed(1)}
+            onChange={(fps) => persistSettings({ ...project, settings: { ...s, fps } })}
+          />
+        </View>
 
-        <Text style={styles.sliderLabel}>FPS {s.fps}</Text>
-        <MiniSlider
-          value={(s.fps - 1) / 59}
-          onChange={(t) =>
-            persistSettings({
-              ...project,
-              settings: { ...s, fps: Math.round((1 + t * 59) * 2) / 2 },
-            })
-          }
-        />
+        {selected ? (
+          <Text style={styles.frameHint}>
+            Кадр №{selected.index} · долгое нажатие на миниатюре — меню
+          </Text>
+        ) : frames.length > 0 ? (
+          <Text style={styles.frameHint}>Выберите кадр в ленте для удаления или пересъёмки</Text>
+        ) : null}
 
         <Timeline
           project={project}
           frames={frames}
           selectedId={selectedFrameId}
+          reshootId={reshootFrameId}
           onSelect={setSelectedFrameId}
+          onLongPress={onFrameLongPress}
         />
       </View>
 
@@ -263,7 +406,13 @@ export default function EditorScreen({ navigation, route }: Props) {
         onPress={capture}
         disabled={capturing}
       >
-        <View style={[styles.captureInner, capturing && styles.captureBusy]} />
+        <View
+          style={[
+            styles.captureInner,
+            capturing && styles.captureBusy,
+            reshootTarget && styles.captureReshoot,
+          ]}
+        />
       </Pressable>
 
       {exporting ? (
@@ -299,20 +448,6 @@ function SmallBtn({ label, onPress, disabled }: { label: string; onPress: () => 
   );
 }
 
-function MiniSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <Pressable
-      style={styles.track}
-      onPress={(e) => {
-        const w = (e.nativeEvent as { locationX?: number }).locationX ?? 0;
-        onChange(Math.min(1, Math.max(0, w / 280)));
-      }}
-    >
-      <View style={[styles.fill, { width: `${value * 100}%` }]} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0a0a0f' },
   centered: { flex: 1, backgroundColor: '#0a0a0f', justifyContent: 'center', alignItems: 'center', padding: 24 },
@@ -320,16 +455,25 @@ const styles = StyleSheet.create({
   permissionHint: { color: '#666', marginTop: 12, fontSize: 12, textAlign: 'center' },
   permissionBtn: { backgroundColor: '#ffeb3b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   permissionBtnText: { color: '#0a0a0f', fontWeight: '600' },
-  cameraWrap: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
+  cameraWrap: { flex: 1, backgroundColor: '#000' },
   onion: { zIndex: 1 },
+  onionMirror: { transform: [{ scaleX: -1 }] },
+  zoomHint: {
+    position: 'absolute',
+    alignSelf: 'center',
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 11,
+    zIndex: 2,
+  },
   topBar: {
     position: 'absolute',
     right: 12,
     left: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    zIndex: 2,
+    zIndex: 3,
   },
+  sliders: { paddingHorizontal: 8, marginBottom: 4 },
   controls: { paddingTop: 8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 8, marginBottom: 6 },
   smallBtn: {
@@ -340,16 +484,6 @@ const styles = StyleSheet.create({
   },
   smallBtnDisabled: { opacity: 0.4 },
   smallBtnText: { color: '#fff', fontSize: 12 },
-  sliderLabel: { color: '#aaa', fontSize: 11, marginLeft: 12, marginTop: 4 },
-  track: {
-    height: 8,
-    marginHorizontal: 12,
-    marginVertical: 4,
-    backgroundColor: '#333',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  fill: { height: '100%', backgroundColor: '#ffeb3b' },
   capture: {
     position: 'absolute',
     alignSelf: 'center',
@@ -364,6 +498,23 @@ const styles = StyleSheet.create({
   },
   captureInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#fff' },
   captureBusy: { backgroundColor: '#999' },
+  captureReshoot: { backgroundColor: '#ffeb3b' },
+  reshootBanner: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,235,59,0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  reshootBannerText: { flex: 1, color: '#0a0a0f', fontSize: 12, fontWeight: '600', marginRight: 8 },
+  reshootCancel: { color: '#0a0a0f', fontSize: 13, fontWeight: '700' },
+  frameHint: { color: '#888', fontSize: 11, paddingHorizontal: 12, marginBottom: 4 },
   exportOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.75)',

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,8 +9,10 @@ import {
   View,
 } from 'react-native';
 import { StopMotionProject } from '../models/types';
-import { CAMERA_RATIOS, lensLabel } from '../models/cameraTypes';
+import { CAMERA_RATIOS, CameraRatio, lensLabel } from '../models/cameraTypes';
 import type { ExportResolution } from '../models/types';
+import { ThumbSlider } from './ThumbSlider';
+import { StepperControl } from './StepperControl';
 
 type Props = {
   visible: boolean;
@@ -19,6 +22,12 @@ type Props = {
   onClose: () => void;
   onSave: (p: StopMotionProject) => void;
 };
+
+function ratioChipLabel(r: CameraRatio): string {
+  if (r === '16:9') return '16∶9 широкий';
+  if (r === '4:3') return '4∶3';
+  return Platform.OS === 'android' ? '1∶1 (обрезка)' : '1∶1';
+}
 
 function Chip({
   label,
@@ -104,12 +113,12 @@ export function CameraSettingsModal({
               </>
             ) : null}
 
-            <Text style={styles.label}>Пропорции превью</Text>
+            <Text style={styles.label}>Пропорции превью (ширина∶высота)</Text>
             <View style={styles.row}>
               {CAMERA_RATIOS.map((r) => (
                 <Chip
                   key={r}
-                  label={r}
+                  label={ratioChipLabel(r)}
                   active={local.settings.cameraRatio === r}
                   onPress={() => setCam({ cameraRatio: r, pictureSize: '' })}
                 />
@@ -133,35 +142,35 @@ export function CameraSettingsModal({
               ))}
             </View>
 
-            <Text style={styles.label}>
-              JPEG качество: {Math.round(local.settings.captureQuality * 100)}%
+            <Text style={styles.hint}>
+              Зум: щипок двумя пальцами или свайп вверх/вниз по экрану камеры.
             </Text>
-            <Pressable
-              style={styles.track}
-              onPress={(e) => {
-                const x = (e.nativeEvent as { locationX?: number }).locationX ?? 0;
-                const q = 0.5 + (x / 260) * 0.5;
-                setCam({ captureQuality: Math.min(1, Math.max(0.5, q)) });
-              }}
-            >
-              <View
-                style={[
-                  styles.fill,
-                  { width: `${((local.settings.captureQuality - 0.5) / 0.5) * 100}%` },
-                ]}
-              />
-            </Pressable>
 
-            <Text style={styles.label}>Зум: {Math.round(local.settings.zoom * 100)}%</Text>
+            <ThumbSlider
+              label="JPEG качество"
+              value={local.settings.captureQuality}
+              minimumValue={0.5}
+              maximumValue={1}
+              step={0.01}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={(v) => setCam({ captureQuality: v })}
+            />
+
             <Pressable
-              style={styles.track}
-              onPress={(e) => {
-                const x = (e.nativeEvent as { locationX?: number }).locationX ?? 0;
-                setCam({ zoom: Math.min(1, Math.max(0, x / 260)) });
+              style={styles.toggleRow}
+              onPress={() => {
+                const next = !local.settings.continuousAutofocus;
+                setCam({ continuousAutofocus: next, lockFocus: !next });
               }}
             >
-              <View style={[styles.fill, { width: `${local.settings.zoom * 100}%` }]} />
+              <Text style={styles.toggleText}>Непрерывный автофокус</Text>
+              <Text style={styles.toggleText}>
+                {local.settings.continuousAutofocus ? 'Вкл' : 'Выкл'}
+              </Text>
             </Pressable>
+            <Text style={styles.hint}>
+              Выкл: фокус фиксируется. Долгое нажатие на превью — фокус в точке (жёлтая рамка).
+            </Text>
 
             <Text style={styles.label}>Вспышка</Text>
             <View style={styles.row}>
@@ -202,23 +211,36 @@ export function CameraSettingsModal({
             </Pressable>
 
             <Text style={styles.section}>Съёмка</Text>
-            <Text style={styles.label}>
-              Задержка: {local.settings.captureDelaySeconds.toFixed(1)} с
-            </Text>
-            <Pressable
-              style={styles.track}
-              onPress={(e) => {
-                const x = (e.nativeEvent as { locationX?: number }).locationX ?? 0;
-                setCam({ captureDelaySeconds: Math.round((x / 260) * 300) / 10 });
-              }}
-            >
-              <View
-                style={[
-                  styles.fill,
-                  { width: `${(local.settings.captureDelaySeconds / 30) * 100}%` },
-                ]}
-              />
-            </Pressable>
+
+            <StepperControl
+              label="FPS"
+              value={local.settings.fps}
+              step={0.5}
+              min={1}
+              max={60}
+              format={(v) => v.toFixed(1)}
+              onChange={(fps) => setCam({ fps })}
+            />
+
+            <StepperControl
+              label="Задержка съёмки (с)"
+              value={local.settings.captureDelaySeconds}
+              step={0.1}
+              min={0}
+              max={30}
+              format={(v) => v.toFixed(1)}
+              onChange={(captureDelaySeconds) => setCam({ captureDelaySeconds })}
+            />
+
+            <ThumbSlider
+              label="Onion skin"
+              value={local.settings.onionSkinOpacity}
+              minimumValue={0}
+              maximumValue={1}
+              step={0.01}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={(v) => setCam({ onionSkinOpacity: v })}
+            />
 
             <Pressable
               style={styles.toggleRow}
@@ -267,6 +289,7 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 8 },
   section: { color: '#ffeb3b', fontWeight: '600', marginTop: 16, marginBottom: 8 },
   label: { color: '#aaa', fontSize: 12, marginBottom: 6, marginTop: 4 },
+  hint: { color: '#666', fontSize: 11, marginBottom: 10, lineHeight: 16 },
   row: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   chip: {
@@ -278,14 +301,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: '#ffeb3b' },
   chipText: { color: '#ccc', fontSize: 13 },
   chipTextActive: { color: '#0a0a0f', fontWeight: '600' },
-  track: {
-    height: 8,
-    backgroundColor: '#333',
-    borderRadius: 4,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  fill: { height: '100%', backgroundColor: '#ffeb3b' },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
