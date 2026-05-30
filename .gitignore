@@ -1,6 +1,7 @@
 # Expo / RN
 node_modules/
 .expo/
+.expo-tmp-export/
 dist/
 android/
 ios/
