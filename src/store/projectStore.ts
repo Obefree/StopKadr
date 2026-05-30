@@ -6,6 +6,7 @@ import {
   mergeProjectSettings,
   sortFrames,
 } from '../models/types';
+import { ensureFileUri } from '../utils/paths';
 
 const ROOT = `${FileSystem.documentDirectory}StopKadr/Projects/`;
 
@@ -95,7 +96,7 @@ export async function addFrame(
   const nextIndex = (sortFrames(project).at(-1)?.index ?? 0) + 1;
   const fileName = `${String(nextIndex).padStart(6, '0')}.jpg`;
   const dest = frameUri(project.id, fileName);
-  await FileSystem.copyAsync({ from: imageUri, to: dest });
+  await FileSystem.copyAsync({ from: ensureFileUri(imageUri), to: dest });
   const frame: FrameItem = {
     id: newId(),
     index: nextIndex,
@@ -121,7 +122,7 @@ export async function replaceFrame(
   imageUri: string,
 ): Promise<StopMotionProject> {
   const dest = frameUri(project.id, frame.imagePath);
-  await FileSystem.copyAsync({ from: imageUri, to: dest });
+  await FileSystem.copyAsync({ from: ensureFileUri(imageUri), to: dest });
   return saveProject({
     ...project,
     frames: project.frames.map((f) =>

@@ -84,7 +84,7 @@ export function CameraGestureOverlay({
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={StyleSheet.absoluteFill} collapsable={false}>
+      <View style={StyleSheet.absoluteFill} collapsable={false} pointerEvents="box-none">
         {children}
         {focus.visible ? (
           <View

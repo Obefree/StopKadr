@@ -1,16 +1,16 @@
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,30 +26,24 @@ import {
   saveProject,
 } from '../store/projectStore';
 import { Timeline } from '../components/Timeline';
-import { GridOverlay } from '../components/GridOverlay';
 import { CameraSettingsModal } from '../components/CameraSettingsModal';
-import { CameraGestureOverlay } from '../components/CameraGestureOverlay';
-import {
-  CameraPreviewViewport,
-  overlayResizeMode,
-} from '../components/CameraPreviewViewport';
+import { CAMERA_BUILD, EditorCamera, type EditorCameraHandle } from '../camera/EditorCamera';
 import { ThumbSlider } from '../components/ThumbSlider';
 import { StepperControl } from '../components/StepperControl';
 import type { FocusMode } from 'expo-camera';
-import { exportProjectToMp4 } from '../export/videoExport';
-import { captureStill } from '../utils/capturePhoto';
-import { nativeCameraRatio, shouldCropCaptureToSquare } from '../utils/cameraRatio';
-import { saveVideoToDevice } from '../utils/mediaSave';
+import { exportAndSaveVideo } from '../sync/saveVideo';
 import { SyncSheet } from '../components/SyncSheet';
-import { useCameraCapabilities } from '../hooks/useCameraCapabilities';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
 
 export default function EditorScreen({ navigation, route }: Props) {
   const { projectId } = route.params;
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
-  const cameraRef = useRef<React.ElementRef<typeof CameraView>>(null);
-  const { lenses, pictureSizes, refresh: refreshCameraCaps } = useCameraCapabilities();
+  const editorCameraRef = useRef<EditorCameraHandle>(null);
+  const [lenses, setLenses] = useState<string[]>([]);
+  const [pictureSizes, setPictureSizes] = useState<string[]>([]);
+  const iosCapsLoading = useRef(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [project, setProject] = useState<Awaited<ReturnType<typeof loadProject>>>(null);
   const [capturing, setCapturing] = useState(false);
@@ -60,27 +54,26 @@ export default function EditorScreen({ navigation, route }: Props) {
   const [exportProgress, setExportProgress] = useState(0);
   const [syncOpen, setSyncOpen] = useState(false);
   const [liveZoom, setLiveZoom] = useState(0);
-  const [focusPulse, setFocusPulse] = useState(false);
-  const focusPulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     const p = await loadProject(projectId);
     setProject(p);
   }, [projectId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const unsub = navigation.addListener('focus', refresh);
     return unsub;
   }, [navigation, refresh]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     activateKeepAwakeAsync('stopkadr-editor').catch(() => {});
+    if (__DEV__) console.log('[StopKadr] camera build:', CAMERA_BUILD);
     return () => {
       deactivateKeepAwake('stopkadr-editor');
     };
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (project) setLiveZoom(project.settings.zoom);
   }, [project?.settings.zoom]);
 
@@ -94,18 +87,44 @@ export default function EditorScreen({ navigation, route }: Props) {
     });
   }, [navigation]);
 
-  const onCameraReady = useCallback(() => {
-    refreshCameraCaps(cameraRef.current);
-  }, [refreshCameraCaps]);
-
-  const onAvailableLensesChanged = useCallback(
-    (event: { lenses: string[] }) => {
-      if (Platform.OS === 'ios' && event.lenses?.length) {
-        refreshCameraCaps(cameraRef.current);
+  const onCameraReady = useCallback(async () => {
+    if (Platform.OS !== 'ios' || iosCapsLoading.current) return;
+    const camera = editorCameraRef.current?.getCamera();
+    if (!camera) return;
+    iosCapsLoading.current = true;
+    try {
+      try {
+        const sizes = await camera.getAvailablePictureSizesAsync();
+        setPictureSizes(
+          sizes.sort((a, b) => {
+            const pa = parsePictureSize(a);
+            const pb = parsePictureSize(b);
+            return pb.w * pb.h - pa.w * pa.h;
+          }),
+        );
+      } catch {
+        setPictureSizes([]);
       }
-    },
-    [refreshCameraCaps],
-  );
+      try {
+        setLenses(await camera.getAvailableLensesAsync());
+      } catch {
+        setLenses([]);
+      }
+    } finally {
+      iosCapsLoading.current = false;
+    }
+  }, []);
+
+  const onMountError = useCallback((event: { message: string }) => {
+    const hint =
+      Platform.OS === 'android'
+        ? '\n\nЗакройте другие приложения с камерой или перезапустите Expo Go.'
+        : '';
+    Alert.alert('Камера', (event.message || 'Не удалось запустить камеру') + hint);
+  }, []);
+
+  const cameraActive =
+    isFocused && Boolean(permission?.granted) && !settingsOpen && !syncOpen;
 
   if (!permission) {
     return (
@@ -141,7 +160,7 @@ export default function EditorScreen({ navigation, route }: Props) {
   const frames = sortFrames(project);
   const lf = lastFrame(project);
   const reshootTarget = reshootFrameId
-    ? frames.find((f) => f.id === reshootFrameId) ?? null
+    ? (frames.find((f) => f.id === reshootFrameId) ?? null)
     : null;
   const onionFrame = reshootTarget
     ? (() => {
@@ -157,16 +176,16 @@ export default function EditorScreen({ navigation, route }: Props) {
   };
 
   const capture = async () => {
-    if (capturing) return;
+    if (capturing || !cameraActive) return;
     setCapturing(true);
     try {
       if (s.captureDelaySeconds > 0) {
         await new Promise((r) => setTimeout(r, s.captureDelaySeconds * 1000));
       }
-      const uri = await captureStill(cameraRef.current, {
-        quality: s.captureQuality,
-        cropSquare: shouldCropCaptureToSquare(s.cameraRatio),
-      });
+      const uri = await editorCameraRef.current?.takeFrame(s.captureQuality);
+      if (!uri) {
+        throw new Error('Камера не готова — подождите превью');
+      }
       let updated = project;
       if (reshootTarget) {
         updated = await replaceFrame(project, reshootTarget, uri);
@@ -176,20 +195,20 @@ export default function EditorScreen({ navigation, route }: Props) {
       }
       setProject(updated);
     } catch (e) {
-      Alert.alert('Ошибка', e instanceof Error ? e.message : 'Съёмка не удалась');
+      const msg = e instanceof Error ? e.message : 'Съёмка не удалась';
+      Alert.alert('Ошибка съёмки', msg);
     } finally {
       setCapturing(false);
     }
   };
 
-  const onExport = async () => {
+  const onExportVideo = async () => {
     setExporting(true);
     setExportProgress(0);
     try {
-      const out = await exportProjectToMp4(project, setExportProgress);
-      await saveVideoToDevice(out);
+      await exportAndSaveVideo(project, setExportProgress);
     } catch (e) {
-      Alert.alert('Экспорт', e instanceof Error ? e.message : 'Не удалось экспортировать');
+      Alert.alert('Видео', e instanceof Error ? e.message : 'Не удалось сохранить');
     } finally {
       setExporting(false);
     }
@@ -240,75 +259,47 @@ export default function EditorScreen({ navigation, route }: Props) {
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
   const mirror = s.cameraFacing === 'front' && s.mirrorFrontCamera;
 
-  const onFocusAt = (_x: number, _y: number) => {
-    if (focusPulseTimer.current) clearTimeout(focusPulseTimer.current);
-    setFocusPulse(true);
-    focusPulseTimer.current = setTimeout(() => setFocusPulse(false), 320);
-  };
-
-  const autofocus: FocusMode = focusPulse
-    ? s.continuousAutofocus
-      ? 'on'
-      : 'off'
-    : s.continuousAutofocus
-      ? 'off'
-      : 'on';
+  const autofocus: FocusMode = Platform.OS === 'android' ? 'off' : s.continuousAutofocus ? 'off' : 'on';
 
   const commitZoom = (z: number) => {
     setLiveZoom(z);
     persistSettings({ ...project, settings: { ...s, zoom: z } });
   };
 
+  const setZoomLocal = (z: number) => setLiveZoom(z);
+
   return (
     <View style={styles.root}>
       <View style={styles.cameraWrap}>
-        <CameraPreviewViewport ratio={s.cameraRatio}>
-          <CameraView
-            key={`${s.cameraFacing}-${nativeCameraRatio(s.cameraRatio)}`}
-            ref={cameraRef}
-            style={StyleSheet.absoluteFill}
-            facing={s.cameraFacing}
-            mirror={mirror}
-            zoom={liveZoom}
-            autofocus={autofocus}
-            flash={s.flash}
-            enableTorch={s.enableTorch}
-            ratio={nativeCameraRatio(s.cameraRatio)}
-            pictureSize={
-              s.cameraRatio === '1:1' && Platform.OS === 'android'
-                ? undefined
-                : s.pictureSize || undefined
-            }
-            selectedLens={s.selectedLens || undefined}
-            responsiveOrientationWhenOrientationLocked={s.responsiveOrientation}
-            onCameraReady={onCameraReady}
-            onAvailableLensesChanged={onAvailableLensesChanged}
-          />
-          {onionUri && s.onionSkinOpacity > 0 ? (
-            <Image
-              source={{ uri: onionUri }}
-              style={[
-                StyleSheet.absoluteFill,
-                styles.onion,
-                { opacity: s.onionSkinOpacity },
-                mirror ? styles.onionMirror : null,
-              ]}
-              resizeMode={overlayResizeMode(s.cameraRatio)}
-            />
-          ) : null}
-          {s.showGrid ? <GridOverlay divisions={s.gridDivisions} /> : null}
+        <EditorCamera
+          ref={editorCameraRef}
+          active={cameraActive}
+          ratio={s.cameraRatio}
+          facing={s.cameraFacing}
+          mirror={mirror}
+          zoom={liveZoom}
+          flash={s.flash}
+          enableTorch={s.enableTorch}
+          autofocus={autofocus}
+          onionUri={onionUri}
+          onionOpacity={s.onionSkinOpacity}
+          showOnion={!capturing && Boolean(onionUri)}
+          showGrid={s.showGrid}
+          gridDivisions={s.gridDivisions}
+          onCameraReady={onCameraReady}
+          onMountError={onMountError}
+          onZoomChange={setZoomLocal}
+          onZoomCommit={commitZoom}
+          onFocusAt={() => {}}
+          pictureSize={Platform.OS === 'ios' ? s.pictureSize || undefined : undefined}
+          selectedLens={Platform.OS === 'ios' ? s.selectedLens || undefined : undefined}
+        />
 
-          <CameraGestureOverlay
-            zoom={liveZoom}
-            onZoomChange={setLiveZoom}
-            onZoomCommit={commitZoom}
-            onFocusAt={onFocusAt}
-          />
-        </CameraPreviewViewport>
-
-        <Text style={[styles.zoomHint, { top: insets.top + 48 }]}>
-          {Math.round(liveZoom * 100)}% · щипок / свайп
-        </Text>
+        {Platform.OS === 'ios' ? (
+          <Text style={[styles.zoomHint, { top: insets.top + 48 }]}>
+            {Math.round(liveZoom * 100)}% · щипок / свайп
+          </Text>
+        ) : null}
 
         {reshootTarget ? (
           <View style={[styles.reshootBanner, { top: insets.top + 44 }]}>
@@ -356,7 +347,7 @@ export default function EditorScreen({ navigation, route }: Props) {
             onPress={() => startReshoot()}
           />
           <SmallBtn label="Play" disabled={frames.length === 0} onPress={() => navigation.navigate('Playback', { projectId })} />
-          <SmallBtn label="Export" disabled={frames.length === 0 || exporting} onPress={onExport} />
+          <SmallBtn label="Видео" disabled={frames.length === 0 || exporting} onPress={onExportVideo} />
         </View>
 
         <View style={styles.sliders}>
@@ -394,6 +385,7 @@ export default function EditorScreen({ navigation, route }: Props) {
         <Timeline
           project={project}
           frames={frames}
+          cameraRatio={s.cameraRatio}
           selectedId={selectedFrameId}
           reshootId={reshootFrameId}
           onSelect={setSelectedFrameId}
@@ -417,7 +409,7 @@ export default function EditorScreen({ navigation, route }: Props) {
 
       {exporting ? (
         <View style={styles.exportOverlay}>
-          <Text style={styles.exportText}>Экспорт {Math.round(exportProgress * 100)}%</Text>
+          <Text style={styles.exportText}>Видео {Math.round(exportProgress * 100)}%</Text>
           <ActivityIndicator color="#ffeb3b" />
         </View>
       ) : null}
@@ -431,13 +423,18 @@ export default function EditorScreen({ navigation, route }: Props) {
         onSave={async (p) => {
           setProject(await saveProject(p));
           setSettingsOpen(false);
-          setTimeout(() => refreshCameraCaps(cameraRef.current), 300);
         }}
       />
 
       <SyncSheet visible={syncOpen} project={project} onClose={() => setSyncOpen(false)} />
     </View>
   );
+}
+
+function parsePictureSize(s: string): { w: number; h: number } {
+  const m = s.match(/(\d+)\s*x\s*(\d+)/i);
+  if (m) return { w: Number(m[1]), h: Number(m[2]) };
+  return { w: 0, h: 0 };
 }
 
 function SmallBtn({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
@@ -455,9 +452,7 @@ const styles = StyleSheet.create({
   permissionHint: { color: '#666', marginTop: 12, fontSize: 12, textAlign: 'center' },
   permissionBtn: { backgroundColor: '#ffeb3b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   permissionBtnText: { color: '#0a0a0f', fontWeight: '600' },
-  cameraWrap: { flex: 1, backgroundColor: '#000' },
-  onion: { zIndex: 1 },
-  onionMirror: { transform: [{ scaleX: -1 }] },
+  cameraWrap: { flex: 1, width: '100%', backgroundColor: '#000' },
   zoomHint: {
     position: 'absolute',
     alignSelf: 'center',

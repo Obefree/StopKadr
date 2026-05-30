@@ -24,9 +24,7 @@ type Props = {
 };
 
 function ratioChipLabel(r: CameraRatio): string {
-  if (r === '16:9') return '16∶9 широкий';
-  if (r === '4:3') return '4∶3';
-  return Platform.OS === 'android' ? '1∶1 (обрезка)' : '1∶1';
+  return r.replace(':', '∶');
 }
 
 function Chip({
@@ -113,7 +111,7 @@ export function CameraSettingsModal({
               </>
             ) : null}
 
-            <Text style={styles.label}>Пропорции превью (ширина∶высота)</Text>
+            <Text style={styles.label}>Формат кадра (16∶9 широкий, 4∶3, 1∶1)</Text>
             <View style={styles.row}>
               {CAMERA_RATIOS.map((r) => (
                 <Chip
@@ -198,16 +196,6 @@ export function CameraSettingsModal({
             >
               <Text style={styles.toggleText}>Зеркало (фронт)</Text>
               <Text style={styles.toggleText}>{local.settings.mirrorFrontCamera ? 'Вкл' : 'Выкл'}</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.toggleRow}
-              onPress={() => setCam({ responsiveOrientation: !local.settings.responsiveOrientation })}
-            >
-              <Text style={styles.toggleText}>Поворот при съёмке (iOS)</Text>
-              <Text style={styles.toggleText}>
-                {local.settings.responsiveOrientation ? 'Вкл' : 'Выкл'}
-              </Text>
             </Pressable>
 
             <Text style={styles.section}>Съёмка</Text>

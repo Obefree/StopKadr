@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 /** Starts PC sync server + Expo Metro (one command on Windows). */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const deepClear = process.argv.includes('--clear');
+
+if (deepClear) {
+  spawnSync(process.execPath, ['tools/clean-metro-cache.mjs'], { cwd: root, stdio: 'inherit' });
+}
+
+const expoArgs = ['expo', 'start', '-c'];
+console.log('[dev] Metro: expo start -c' + (deepClear ? ' + .expo removed' : ''));
 
 const sync = spawn(process.execPath, ['tools/pc-sync/server.mjs'], {
   cwd: root,
@@ -15,7 +23,7 @@ const sync = spawn(process.execPath, ['tools/pc-sync/server.mjs'], {
 
 const expo = spawn(
   process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['expo', 'start'],
+  expoArgs,
   { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' },
 );
 

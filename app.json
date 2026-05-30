@@ -2,8 +2,8 @@
   "expo": {
     "name": "StopKadr",
     "slug": "StopKadr",
-    "version": "0.3.0",
-    "orientation": "portrait",
+    "version": "0.5.4",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,

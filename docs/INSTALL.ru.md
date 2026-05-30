@@ -15,6 +15,10 @@ npx expo install
 npm start
 ```
 
+`npm start` и `npm run dev` **сбрасывают кэш Metro** (`expo start -c`).  
+После больших правок камеры на телефоне с **APK** пересоберите: `build-apk-release.bat` (там тоже clean).  
+Только Expo Go без пересборки APK = старый нативный код, JS обновится, native — нет.
+
 Телефон: **Expo Go**, та же Wi‑Fi, скан QR.
 
 | В Expo Go | Android | iOS |

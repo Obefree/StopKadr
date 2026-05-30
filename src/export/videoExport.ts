@@ -13,15 +13,25 @@ const RESOLUTION_MAP: Record<ExportResolution, { w: number; h: number } | null> 
 
 export type ExportProgress = (p: number) => void;
 
-function exportUnavailableMessage(): string {
+export function exportUnavailableMessage(): string {
   return (
     'Экспорт MP4 недоступен в Expo Go.\n\n' +
-    '• Android (Windows): npm run build:android:preview или build-apk-release.bat\n' +
-    '• iOS (приоритет): eas build -p ios на Mac или в облаке EAS'
+    'Соберите приложение:\n' +
+    '• Android: npm run build:android:preview\n' +
+    '• iOS: eas build -p ios'
   );
 }
 
-/** Requires dev build / EAS APK or IPA — not Expo Go. */
+export async function isVideoExportAvailable(): Promise<boolean> {
+  try {
+    await import('ffmpeg-kit-react-native');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Dev build / APK / IPA — не Expo Go. */
 export async function exportProjectToMp4(
   project: StopMotionProject,
   onProgress?: ExportProgress,

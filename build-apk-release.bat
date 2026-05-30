@@ -29,17 +29,20 @@ if not exist "%ANDROID_HOME%" (
 
 set "PATH=%JAVA_HOME%\bin;%ANDROID_HOME%\platform-tools;%PATH%"
 
-echo [1/4] npm install
+echo [1/5] npm install
 call npm install
 if errorlevel 1 exit /b 1
 
-echo [2/4] expo prebuild android
-call npx expo prebuild --platform android
+echo [2/5] clear Metro / Expo cache
+call node tools\clean-metro-cache.mjs
+
+echo [3/5] expo prebuild android --clean
+call npx expo prebuild --platform android --clean
 if errorlevel 1 exit /b 1
 
-echo [3/4] gradle assembleRelease
+echo [4/5] gradle clean assembleRelease
 cd android
-call gradlew.bat assembleRelease
+call gradlew.bat clean assembleRelease
 if errorlevel 1 (
   cd ..
   pause
@@ -59,6 +62,7 @@ for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmm"'
 set "OUT=dist\StopKadr-release_%TS%.apk"
 copy /y "%APK%" "%OUT%" >nul
 echo.
+echo [5/5] done
 echo [OK] %OUT%
 echo Install on phone: adb install -r "%OUT%"
 pause

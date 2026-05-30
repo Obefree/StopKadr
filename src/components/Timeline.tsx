@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   FlatList,
   Image,
@@ -8,11 +8,14 @@ import {
   View,
 } from 'react-native';
 import { FrameItem, StopMotionProject } from '../models/types';
+import type { CameraRatio } from '../models/cameraTypes';
+import { timelineThumbSize } from '../models/cameraTypes';
 import { frameUri } from '../store/projectStore';
 
 type Props = {
   project: StopMotionProject;
   frames: FrameItem[];
+  cameraRatio: CameraRatio;
   selectedId: string | null;
   reshootId?: string | null;
   onSelect: (id: string) => void;
@@ -22,11 +25,14 @@ type Props = {
 export function Timeline({
   project,
   frames,
+  cameraRatio,
   selectedId,
   reshootId,
   onSelect,
   onLongPress,
 }: Props) {
+  const thumb = useMemo(() => timelineThumbSize(cameraRatio), [cameraRatio]);
+
   return (
     <FlatList
       horizontal
@@ -44,13 +50,22 @@ export function Timeline({
             delayLongPress={400}
             style={[
               styles.thumb,
+              { width: thumb.width, height: thumb.height },
               selected && styles.selected,
               reshoot && styles.reshoot,
             ]}
           >
-            <Image source={{ uri: frameUri(project.id, item.imagePath) }} style={styles.image} />
+            <Image
+              source={{ uri: frameUri(project.id, item.imagePath) }}
+              style={styles.image}
+              resizeMode="contain"
+            />
             <Text style={styles.index}>{item.index}</Text>
-            {reshoot ? <View style={styles.reshootBadge}><Text style={styles.reshootBadgeText}>↻</Text></View> : null}
+            {reshoot ? (
+              <View style={styles.reshootBadge}>
+                <Text style={styles.reshootBadgeText}>↻</Text>
+              </View>
+            ) : null}
           </Pressable>
         );
       }}
@@ -59,14 +74,13 @@ export function Timeline({
 }
 
 const styles = StyleSheet.create({
-  list: { paddingHorizontal: 12, gap: 8, paddingBottom: 4 },
+  list: { paddingHorizontal: 12, gap: 8, paddingBottom: 4, alignItems: 'center' },
   thumb: {
-    width: 64,
-    height: 64,
     borderRadius: 6,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
+    backgroundColor: '#111',
   },
   selected: { borderColor: '#ffeb3b' },
   reshoot: { borderColor: '#ff9800' },
