@@ -1,30 +1,32 @@
 ﻿# StopKadr
 
-iOS stop motion app (SwiftUI + AVFoundation). Shoot frame-by-frame with live camera preview, onion skin, timeline, playback, and MP4 export.
+Stop motion на **Expo** (React Native): камера, onion skin, таймлайн, предпросмотр, экспорт MP4 (в dev/APK сборке).
 
-## Requirements
+**Без Mac:** разработка на Windows, запуск через **Expo Go**, APK через **EAS Build**.
 
-- macOS with Xcode 15+
-- iPhone with iOS 17+ for real camera capture (simulator: UI only, no live camera)
+## Быстрый старт
 
-Подробная установка: [docs/INSTALL.ru.md](./docs/INSTALL.ru.md)
+```powershell
+npm install
+npx expo install
+npm start
+```
 
-## Open & run
+Откройте проект в **Expo Go** на телефоне (QR в терминале).
 
-1. Open `StopKadr.xcodeproj` in Xcode.
-2. Select your **Team** in Signing & Capabilities for target **StopKadr**.
-3. Run on a physical iPhone for full camera MVP.
+## Установка
 
-## MVP features
+**[docs/INSTALL.ru.md](./docs/INSTALL.ru.md)** — Expo Go, EAS APK, Android Studio, iPhone через Expo Go.
 
-- Project list, create/delete projects
-- Local storage: `Documents/StopKadr/Projects/<id>/project.json` + `frames/*.jpg`
-- Live `AVCaptureSession` preview (not system camera picker)
-- Capture frames, onion skin overlay, timeline
-- Flexible `fps` and `captureDelaySeconds` as `Double`
-- Playback with `holdFrames`
-- Export `.mp4` via `AVAssetWriter` + share sheet
+## Стек
+
+- Expo SDK 54, `expo-camera`, `expo-file-system`
+- Экспорт видео: `ffmpeg-kit-react-native` (не в Expo Go — только в собранном APK/dev build)
+
+## Архив native iOS (Swift)
+
+Первый прототип на SwiftUI: `ios-native/` (нужен Mac + Xcode).
 
 ## Spec
 
-See [CURSOR_TASK.md](./CURSOR_TASK.md) for full product and architecture notes.
+[CURSOR_TASK.md](./CURSOR_TASK.md)

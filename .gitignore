@@ -1,13 +1,15 @@
-# Xcode
-build/
+# Expo / RN
+node_modules/
+.expo/
+dist/
+android/
+ios/
+
+# Xcode (archived native)
+ios-native/**/build/
 DerivedData/
 *.xcuserstate
-*.xcscmblueprint
 xcuserdata/
 
 # macOS
 .DS_Store
-
-# Swift Package Manager
-.build/
-.swiftpm/

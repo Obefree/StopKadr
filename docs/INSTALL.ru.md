@@ -1,100 +1,115 @@
-# StopKadr — установка и первый запуск
+# StopKadr — установка (Expo, без Mac)
 
-Приложение собирается **только на Mac** с Xcode. На Windows репозиторий можно клонировать и редактировать код; для запуска на iPhone нужен Mac (или облачный Mac).
+Основной стек: **Expo / React Native**. Разработка и сборка APK — на **Windows**. Mac не нужен.
+
+Нативный Swift-проект (архив): папка `ios-native/` — только если позже понадобится чистый iOS.
 
 ---
 
 ## 1. Что понадобится
 
-| Требование | Минимум |
-|------------|---------|
-| Mac | macOS 14+ (Sonoma или новее) |
-| Xcode | 15.0 или новее ([Mac App Store](https://apps.apple.com/app/xcode/id497799835)) |
-| iPhone | iOS 17+, кабель USB / Wi‑Fi debugging |
-| Apple ID | Бесплатный аккаунт достаточен для установки на свой телефон (7 дней, можно продлевать) |
-
-Для публикации в App Store позже понадобится платный Apple Developer Program ($99/год).
+| | |
+|---|---|
+| **Windows** | Node.js 20 LTS, npm |
+| **Телефон** | Android (Expo Go) или iPhone (Expo Go из App Store) |
+| **Опционально** | Android Studio — для `expo run:android` локально |
+| **Опционально** | Аккаунт [expo.dev](https://expo.dev) — для облачной сборки APK (EAS) |
 
 ---
 
-## 2. Клонирование репозитория
+## 2. Клонирование и зависимости
 
-На Mac (Terminal):
-
-```bash
+```powershell
 git clone https://github.com/Obefree/StopKadr.git
 cd StopKadr
+npm install
+npx expo install
 ```
 
-Если проект уже лежит в `Documents/GitHub/StopKadr` на Windows — скопируйте папку на Mac (iCloud, git pull, USB) или сделайте `git pull` после push.
+`npx expo install` подтянет версии пакетов, совместимые с SDK 54.
 
 ---
 
-## 3. Открытие в Xcode
+## 3. Запуск в Expo Go (самый быстрый старт)
 
-1. Откройте файл **`StopKadr.xcodeproj`** (двойной клик или File → Open).
-2. В левой панели выберите проект **StopKadr** → target **StopKadr** → вкладка **Signing & Capabilities**.
-3. Включите **Automatically manage signing**.
-4. В **Team** выберите свой Apple ID (Add Account… если пусто).
-5. При необходимости смените **Bundle Identifier** на уникальный, например `com.ваше-имя.StopKadr` (если `com.obefree.StopKadr` занят).
+1. На телефон установите **Expo Go** ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent), [iOS](https://apps.apple.com/app/expo-go/id982107779)).
+2. ПК и телефон — **одна Wi‑Fi сеть**.
+3. В папке проекта:
 
----
+```powershell
+npm start
+```
 
-## 4. Запуск на iPhone (рекомендуется)
+4. Отсканируйте QR-код в терминале (или в браузере Metro).
+5. Разрешите **камеру** в приложении.
 
-Симулятор **не подходит** для полноценной съёмки — нужна реальная камера.
+**В Expo Go работает:** проекты, съёмка, onion skin, таймлайн, предпросмотр.
 
-1. Подключите iPhone кабелем, разблокируйте, подтвердите «Доверять этому компьютеру».
-2. На iPhone: **Настройки → Конфиденциальность → Режим разработчика** (если Xcode попросил — включите после первой установки).
-3. В Xcode вверху выберите устройство — ваш **iPhone**, не Simulator.
-4. Нажмите **Run** (▶) или `Cmd + R`.
-5. При первом запуске разрешите **доступ к камере**.
-
-Если сборка падает с signing error — проверьте Team и уникальный Bundle ID.
+**В Expo Go не работает:** экспорт MP4 (нужен dev build / APK с FFmpeg — см. ниже).
 
 ---
 
-## 5. Первый сценарий в приложении
+## 4. Сборка APK без Mac (EAS Build)
 
-1. **New Project** → имя проекта.
-2. Наведите кадр, при необходимости **Settings** → lock focus / grid.
-3. Большая кнопка — **снимок кадра**; двигайте объект, повторяйте.
-4. Регулируйте **onion skin** (прозрачность прошлого кадра).
-5. **Play** — предпросмотр; **Export** — MP4 и share sheet (Файлы / Фото).
+1. Установите EAS CLI: `npm install -g eas-cli`
+2. Войдите: `eas login`
+3. Привяжите проект (один раз): `eas init`
+4. Сборка preview APK:
 
-Кадры сохраняются локально и остаются после перезапуска приложения.
+```powershell
+npm run build:android:preview
+```
 
----
+5. Скачайте APK по ссылке из expo.dev и установите на Android.
 
-## 6. Cursor + Knowledge Base (опционально)
-
-Чтобы агент видел KB и код:
-
-1. Откройте workspace:  
-   `C:\Users\lev\Documents\GitHub\Knowledge-base\Knowledge-base.code-workspace`
-2. В нём есть папка **StopKadr**.
-3. Маршрут в KB: `CONTEXT_ROUTER.md` → **Route: StopKadr**.
+В этой сборке доступен **экспорт MP4** (ffmpeg-kit).
 
 ---
 
-## 7. Частые проблемы
+## 5. Локальная сборка Android (если есть Android Studio)
+
+```powershell
+npx expo prebuild --platform android
+npm run android
+```
+
+Или подключите устройство и `npx expo run:android`.
+
+---
+
+## 6. iPhone без Mac
+
+- **Разработка:** Expo Go из App Store + `npm start` (как на Android).
+- **Установка standalone .ipa без Mac:** только через **EAS Build** (`eas build -p ios`) с Apple Developer аккаунтом; на Windows это делается в облаке Expo, Mac не нужен.
+
+---
+
+## 7. Первый сценарий
+
+1. **+** → новый проект.
+2. Снимайте кадры (большая белая кнопка).
+3. Onion skin — ползунок «Onion %».
+4. **Play** — предпросмотр.
+5. **Export** — в APK/EAS build; в Expo Go появится подсказка собрать APK.
+
+Данные: `Documents/StopKadr/Projects/` на устройстве.
+
+---
+
+## 8. Cursor + Knowledge Base
+
+Workspace: `Knowledge-base.code-workspace` → папка **StopKadr**.  
+Маршрут KB: `CONTEXT_ROUTER.md` → **StopKadr**.
+
+---
+
+## 9. Частые проблемы
 
 | Проблема | Решение |
 |----------|---------|
-| «No signing certificate» | Xcode → Settings → Accounts → Download Manual Profiles; выбрать Team |
-| Чёрный экран камеры | Запуск на **реальном** iPhone, разрешение камеры в Настройках |
-| Export не открывается | Сохранить через share sheet в «Файлы» или «Фото» |
-| Сборка только на Windows | Нужен Mac с Xcode; альтернатива — MacinCloud / свой Mac mini |
+| QR не открывается | Одна сеть Wi‑Fi; попробуйте `npx expo start --tunnel` |
+| Камера чёрная | Разрешение камеры; перезапуск Expo Go |
+| Export в Expo Go | Соберите APK: `npm run build:android:preview` |
+| `npm install` ошибки | Node 20+, удалите `node_modules`, снова `npm install` |
 
----
-
-## 8. Обновление кода
-
-```bash
-cd StopKadr
-git pull origin main
-```
-
-Пересоберите в Xcode (`Cmd + R`).
-
-Спецификация продукта: [CURSOR_TASK.md](../CURSOR_TASK.md).
+Спецификация: [CURSOR_TASK.md](../CURSOR_TASK.md).

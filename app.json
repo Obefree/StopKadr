@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "StopKadr",
+    "slug": "StopKadr",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0f"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.obefree.stopkadr",
+      "infoPlist": {
+        "NSCameraUsageDescription": "StopKadr needs the camera to capture stop motion frames.",
+        "NSPhotoLibraryUsageDescription": "StopKadr saves exported videos to your library.",
+        "NSPhotoLibraryAddUsageDescription": "StopKadr saves exported videos to your library."
+      }
+    },
+    "android": {
+      "package": "com.obefree.stopkadr",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0f"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "StopKadr needs the camera to capture stop motion frames.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "StopKadr accesses photos to save exports.",
+          "savePhotosPermission": "Allow StopKadr to save exported videos.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
+    ]
+  }
+}
