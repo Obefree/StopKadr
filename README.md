@@ -1,4 +1,4 @@
-# StopKadr
+﻿# StopKadr
 
 iOS stop motion app (SwiftUI + AVFoundation). Shoot frame-by-frame with live camera preview, onion skin, timeline, playback, and MP4 export.
 
@@ -6,6 +6,8 @@ iOS stop motion app (SwiftUI + AVFoundation). Shoot frame-by-frame with live cam
 
 - macOS with Xcode 15+
 - iPhone with iOS 17+ for real camera capture (simulator: UI only, no live camera)
+
+Подробная установка: [docs/INSTALL.ru.md](./docs/INSTALL.ru.md)
 
 ## Open & run
 
