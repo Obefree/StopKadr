@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -33,6 +33,7 @@ import { exportProjectToMp4 } from '../export/videoExport';
 import { CameraView } from 'expo-camera';
 import { captureStill } from '../utils/capturePhoto';
 import { saveVideoToDevice } from '../utils/mediaSave';
+import { SyncSheet } from '../components/SyncSheet';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
 
@@ -49,6 +50,7 @@ export default function EditorScreen({ navigation, route }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const p = await loadProject(projectId);
@@ -66,6 +68,16 @@ export default function EditorScreen({ navigation, route }: Props) {
       deactivateKeepAwake('stopkadr-editor');
     };
   }, []);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => setSyncOpen(true)} hitSlop={12} style={{ marginRight: 8 }}>
+          <Text style={{ color: '#ffeb3b', fontWeight: '600' }}>Сохранить</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
 
   if (!permission) {
     return (
@@ -244,6 +256,8 @@ export default function EditorScreen({ navigation, route }: Props) {
           setSettingsOpen(false);
         }}
       />
+
+      <SyncSheet visible={syncOpen} project={project} onClose={() => setSyncOpen(false)} />
     </View>
   );
 }

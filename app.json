@@ -18,7 +18,11 @@
       "infoPlist": {
         "NSCameraUsageDescription": "StopKadr needs the camera to capture stop motion frames.",
         "NSPhotoLibraryUsageDescription": "StopKadr saves exported videos to your library.",
-        "NSPhotoLibraryAddUsageDescription": "StopKadr saves exported videos to your library."
+        "NSPhotoLibraryAddUsageDescription": "StopKadr saves exported videos to your library.",
+        "NSLocalNetworkUsageDescription": "StopKadr sends projects to your PC on the same Wi-Fi network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -35,6 +39,7 @@
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
+      "usesCleartextTraffic": true,
       "edgeToEdgeEnabled": true
     },
     "plugins": [
