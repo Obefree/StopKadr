@@ -4,18 +4,18 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { lastFrame, sortFrames } from '../models/types';
 import {
@@ -30,12 +30,16 @@ import {
 import { Timeline } from '../components/Timeline';
 import { GridOverlay } from '../components/GridOverlay';
 import { exportProjectToMp4 } from '../export/videoExport';
+import { CameraView } from 'expo-camera';
+import { captureStill } from '../utils/capturePhoto';
+import { saveVideoToDevice } from '../utils/mediaSave';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
 
 export default function EditorScreen({ navigation, route }: Props) {
   const { projectId } = route.params;
-  const cameraRef = useRef<CameraView>(null);
+  const insets = useSafeAreaInsets();
+  const cameraRef = useRef<React.ElementRef<typeof CameraView>>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [project, setProject] = useState<Awaited<ReturnType<typeof loadProject>>>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
@@ -78,6 +82,9 @@ export default function EditorScreen({ navigation, route }: Props) {
         <Pressable style={styles.permissionBtn} onPress={requestPermission}>
           <Text style={styles.permissionBtnText}>Разрешить</Text>
         </Pressable>
+        {Platform.OS === 'android' && !permission.canAskAgain ? (
+          <Text style={styles.permissionHint}>Настройки → Приложения → StopKadr → Разрешения</Text>
+        ) : null}
       </View>
     );
   }
@@ -101,18 +108,17 @@ export default function EditorScreen({ navigation, route }: Props) {
   };
 
   const capture = async () => {
-    if (!cameraRef.current || capturing) return;
+    if (capturing) return;
     setCapturing(true);
     try {
       const delay = project.settings.captureDelaySeconds;
       if (delay > 0) {
         await new Promise((r) => setTimeout(r, delay * 1000));
       }
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 });
-      if (!photo?.uri) throw new Error('Не удалось снять кадр');
+      const uri = await captureStill(cameraRef.current);
       const updated = reshoot
-        ? await replaceLastFrame(project, photo.uri)
-        : await addFrame(project, photo.uri);
+        ? await replaceLastFrame(project, uri)
+        : await addFrame(project, uri);
       setProject(updated);
       setReshoot(false);
     } catch (e) {
@@ -127,13 +133,7 @@ export default function EditorScreen({ navigation, route }: Props) {
     setExportProgress(0);
     try {
       const out = await exportProjectToMp4(project, setExportProgress);
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status === 'granted') {
-        await MediaLibrary.saveToLibraryAsync(out);
-        Alert.alert('Готово', 'Видео сохранено в галерею');
-      } else if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(out, { mimeType: 'video/mp4' });
-      }
+      await saveVideoToDevice(out);
     } catch (e) {
       Alert.alert('Экспорт', e instanceof Error ? e.message : 'Не удалось экспортировать');
     } finally {
@@ -142,15 +142,22 @@ export default function EditorScreen({ navigation, route }: Props) {
   };
 
   const selected = frames.find((f) => f.id === selectedFrameId);
+  const bottomPad = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
 
   return (
     <View style={styles.root}>
       <View style={styles.cameraWrap}>
-        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          mirror={facing === 'front'}
+          {...(Platform.OS === 'android' ? { ratio: '16:9' as const } : {})}
+        />
         {onionUri && opacity > 0 ? (
           <Image
             source={{ uri: onionUri }}
-            style={[StyleSheet.absoluteFill, { opacity }]}
+            style={[StyleSheet.absoluteFill, styles.onion, { opacity }]}
             resizeMode="cover"
           />
         ) : null}
@@ -158,20 +165,20 @@ export default function EditorScreen({ navigation, route }: Props) {
           <GridOverlay divisions={project.settings.gridDivisions} />
         ) : null}
 
-        <View style={styles.topBar}>
-          <Pressable onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}>
+        <View style={[styles.topBar, { top: insets.top + 8 }]}>
+          <Pressable onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))} hitSlop={12}>
             <Ionicons name="camera-reverse" size={26} color="#fff" />
           </Pressable>
           <Text style={styles.delayLabel}>
             Задержка {project.settings.captureDelaySeconds.toFixed(1)} с
           </Text>
-          <Pressable onPress={() => setSettingsOpen(true)}>
+          <Pressable onPress={() => setSettingsOpen(true)} hitSlop={12}>
             <Ionicons name="options" size={26} color="#fff" />
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, { paddingBottom: bottomPad + 88 }]}>
         <View style={styles.row}>
           <SmallBtn label="Undo" disabled={frames.length === 0} onPress={async () => setProject(await deleteLastFrame(project))} />
           <SmallBtn
@@ -213,8 +220,12 @@ export default function EditorScreen({ navigation, route }: Props) {
         />
       </View>
 
-      <Pressable style={[styles.capture, capturing && styles.captureDisabled]} onPress={capture} disabled={capturing}>
-        <View style={styles.captureInner} />
+      <Pressable
+        style={[styles.capture, { bottom: bottomPad + 16 }]}
+        onPress={capture}
+        disabled={capturing}
+      >
+        <View style={[styles.captureInner, capturing && styles.captureBusy]} />
       </Pressable>
 
       {exporting ? (
@@ -292,14 +303,23 @@ function SettingsModal({
               }
             />
             <Text style={styles.settingValue}>{local.settings.captureDelaySeconds.toFixed(1)} с</Text>
-            <Pressable style={styles.toggleRow} onPress={() => setLocal({ ...local, settings: { ...local.settings, showGrid: !local.settings.showGrid } })}>
+            <Pressable
+              style={styles.toggleRow}
+              onPress={() =>
+                setLocal({ ...local, settings: { ...local.settings, showGrid: !local.settings.showGrid } })
+              }
+            >
               <Text style={styles.toggleText}>Сетка</Text>
               <Text style={styles.toggleText}>{local.settings.showGrid ? 'Вкл' : 'Выкл'}</Text>
             </Pressable>
           </ScrollView>
           <View style={styles.modalActions}>
-            <Pressable onPress={onClose}><Text style={styles.cancel}>Отмена</Text></Pressable>
-            <Pressable onPress={() => onSave(local)}><Text style={styles.create}>Сохранить</Text></Pressable>
+            <Pressable onPress={onClose}>
+              <Text style={styles.cancel}>Отмена</Text>
+            </Pressable>
+            <Pressable onPress={() => onSave(local)}>
+              <Text style={styles.create}>Сохранить</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -309,22 +329,24 @@ function SettingsModal({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0a0a0f' },
-  centered: { flex: 1, backgroundColor: '#0a0a0f', justifyContent: 'center', alignItems: 'center' },
-  permissionText: { color: '#ccc', marginBottom: 16 },
+  centered: { flex: 1, backgroundColor: '#0a0a0f', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  permissionText: { color: '#ccc', marginBottom: 16, textAlign: 'center' },
+  permissionHint: { color: '#666', marginTop: 12, fontSize: 12, textAlign: 'center' },
   permissionBtn: { backgroundColor: '#ffeb3b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   permissionBtnText: { color: '#0a0a0f', fontWeight: '600' },
   cameraWrap: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
+  onion: { zIndex: 1 },
   topBar: {
     position: 'absolute',
-    top: 8,
     left: 12,
     right: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 2,
   },
   delayLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 12 },
-  controls: { paddingBottom: 88, paddingTop: 8 },
+  controls: { paddingTop: 8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 8, marginBottom: 6 },
   smallBtn: {
     backgroundColor: '#1e1e2a',
@@ -346,7 +368,6 @@ const styles = StyleSheet.create({
   fill: { height: '100%', backgroundColor: '#ffeb3b' },
   capture: {
     position: 'absolute',
-    bottom: 20,
     alignSelf: 'center',
     width: 76,
     height: 76,
@@ -355,18 +376,26 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
-  captureDisabled: { opacity: 0.5 },
   captureInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#fff' },
+  captureBusy: { backgroundColor: '#999' },
   exportOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 20,
   },
   exportText: { color: '#fff', marginBottom: 12 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  settingsCard: { backgroundColor: '#1a1a24', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '50%' },
+  settingsCard: {
+    backgroundColor: '#1a1a24',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    maxHeight: '50%',
+  },
   settingsTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 12 },
   settingValue: { color: '#888', marginLeft: 12, marginBottom: 8 },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 },

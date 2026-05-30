@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { StopMotionProject, lastFrame, sortFrames } from '../models/types';
 import {
@@ -24,6 +25,7 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'Projects'>;
 
 export default function ProjectListScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const [projects, setProjects] = useState<StopMotionProject[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -95,7 +97,7 @@ export default function ProjectListScreen({ navigation }: Props) {
         }}
       />
 
-      <Pressable style={styles.fab} onPress={() => setModalOpen(true)}>
+      <Pressable style={[styles.fab, { bottom: 28 + insets.bottom }]} onPress={() => setModalOpen(true)}>
         <Ionicons name="add" size={28} color="#0a0a0f" />
       </Pressable>
 

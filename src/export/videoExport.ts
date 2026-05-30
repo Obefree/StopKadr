@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { expandedFrameUris } from '../store/projectStore';
 import { ExportResolution, StopMotionProject } from '../models/types';
+import { pathForFfmpeg } from '../utils/paths';
 
 const RESOLUTION_MAP: Record<ExportResolution, { w: number; h: number } | null> = {
   hd720: { w: 1280, h: 720 },
@@ -12,7 +13,15 @@ const RESOLUTION_MAP: Record<ExportResolution, { w: number; h: number } | null> 
 
 export type ExportProgress = (p: number) => void;
 
-/** Requires dev build / EAS (ffmpeg-kit), not Expo Go. */
+function exportUnavailableMessage(): string {
+  return (
+    'Экспорт MP4 недоступен в Expo Go.\n\n' +
+    '• Android (Windows): npm run build:android:preview или build-apk-release.bat\n' +
+    '• iOS (приоритет): eas build -p ios на Mac или в облаке EAS'
+  );
+}
+
+/** Requires dev build / EAS APK or IPA — not Expo Go. */
 export async function exportProjectToMp4(
   project: StopMotionProject,
   onProgress?: ExportProgress,
@@ -24,22 +33,23 @@ export async function exportProjectToMp4(
     FFmpegKit = mod.FFmpegKit;
     ReturnCode = mod.ReturnCode;
   } catch {
-    throw new Error(
-      'Экспорт MP4 недоступен в Expo Go. Соберите APK: npm run build:android:preview (EAS) или expo run:android.',
-    );
+    throw new Error(exportUnavailableMessage());
   }
 
   const frames = expandedFrameUris(project);
   if (frames.length === 0) throw new Error('Нет кадров для экспорта.');
 
-  const workDir = `${FileSystem.cacheDirectory}stopkadr-export-${project.id}/`;
+  const cache = FileSystem.cacheDirectory;
+  if (!cache) throw new Error('Cache directory unavailable');
+
+  const workDir = `${cache}stopkadr-export-${project.id}/`;
   await FileSystem.deleteAsync(workDir, { idempotent: true });
   await FileSystem.makeDirectoryAsync(workDir, { intermediates: true });
 
   for (let i = 0; i < frames.length; i++) {
     const dest = `${workDir}${String(i + 1).padStart(6, '0')}.jpg`;
     await FileSystem.copyAsync({ from: frames[i], to: dest });
-    onProgress?.((i + 1) / frames.length * 0.5);
+    onProgress?.(((i + 1) / frames.length) * 0.5);
   }
 
   const fps = Math.max(1, project.settings.fps);
@@ -49,8 +59,8 @@ export async function exportProjectToMp4(
     ? `scale=${size.w}:${size.h}:force_original_aspect_ratio=decrease,pad=${size.w}:${size.h}:(ow-iw)/2:(oh-ih)/2`
     : 'scale=1920:-2';
 
-  const inputPattern = `${workDir.replace('file://', '')}%06d.jpg`;
-  const outputFile = outPath.replace('file://', '');
+  const inputPattern = `${pathForFfmpeg(workDir)}%06d.jpg`;
+  const outputFile = pathForFfmpeg(outPath);
   const cmd = `-y -framerate ${fps} -i "${inputPattern}" -vf "${vfScale},format=yuv420p" -c:v libx264 -pix_fmt yuv420p "${outputFile}"`;
 
   onProgress?.(0.6);

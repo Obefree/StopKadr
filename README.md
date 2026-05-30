@@ -1,8 +1,8 @@
 ﻿# StopKadr
 
-Stop motion на **Expo** (React Native): камера, onion skin, таймлайн, предпросмотр, экспорт MP4 (в dev/APK сборке).
+Stop motion на **Expo** (React Native): камера, onion skin, таймлайн, предпросмотр, экспорт MP4.
 
-**Без Mac:** разработка на Windows, запуск через **Expo Go**, APK через **EAS Build**.
+**Платформы:** **iOS — приоритет** (качество, EAS/Xcode). **Android** — полностью с Windows (Expo Go + `build-apk-release.bat`).
 
 ## Быстрый старт
 
@@ -12,7 +12,9 @@ npx expo install
 npm start
 ```
 
-Откройте проект в **Expo Go** на телефоне (QR в терминале).
+Expo Go на **Android или iPhone** (QR). MP4 export — в собранном APK/IPA.
+
+**Android APK (Windows):** `build-apk-release.bat` → `dist\StopKadr-release_*.apk`
 
 ## Установка
 
