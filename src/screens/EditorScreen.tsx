@@ -3,15 +3,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,11 +27,12 @@ import {
 } from '../store/projectStore';
 import { Timeline } from '../components/Timeline';
 import { GridOverlay } from '../components/GridOverlay';
+import { CameraSettingsModal } from '../components/CameraSettingsModal';
 import { exportProjectToMp4 } from '../export/videoExport';
-import { CameraView } from 'expo-camera';
 import { captureStill } from '../utils/capturePhoto';
 import { saveVideoToDevice } from '../utils/mediaSave';
 import { SyncSheet } from '../components/SyncSheet';
+import { useCameraCapabilities } from '../hooks/useCameraCapabilities';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
 
@@ -41,9 +40,9 @@ export default function EditorScreen({ navigation, route }: Props) {
   const { projectId } = route.params;
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<React.ElementRef<typeof CameraView>>(null);
+  const { lenses, pictureSizes, refresh: refreshCameraCaps } = useCameraCapabilities();
   const [permission, requestPermission] = useCameraPermissions();
   const [project, setProject] = useState<Awaited<ReturnType<typeof loadProject>>>(null);
-  const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [capturing, setCapturing] = useState(false);
   const [reshoot, setReshoot] = useState(false);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
@@ -79,6 +78,19 @@ export default function EditorScreen({ navigation, route }: Props) {
     });
   }, [navigation]);
 
+  const onCameraReady = useCallback(() => {
+    refreshCameraCaps(cameraRef.current);
+  }, [refreshCameraCaps]);
+
+  const onAvailableLensesChanged = useCallback(
+    (event: { lenses: string[] }) => {
+      if (Platform.OS === 'ios' && event.lenses?.length) {
+        refreshCameraCaps(cameraRef.current);
+      }
+    },
+    [refreshCameraCaps],
+  );
+
   if (!permission) {
     return (
       <View style={styles.centered}>
@@ -109,10 +121,10 @@ export default function EditorScreen({ navigation, route }: Props) {
     );
   }
 
+  const s = project.settings;
   const frames = sortFrames(project);
   const lf = lastFrame(project);
   const onionUri = lf ? frameUri(project.id, lf.imagePath) : null;
-  const opacity = project.settings.onionSkinOpacity;
 
   const persistSettings = async (next: typeof project) => {
     const saved = await saveProject(next);
@@ -123,11 +135,10 @@ export default function EditorScreen({ navigation, route }: Props) {
     if (capturing) return;
     setCapturing(true);
     try {
-      const delay = project.settings.captureDelaySeconds;
-      if (delay > 0) {
-        await new Promise((r) => setTimeout(r, delay * 1000));
+      if (s.captureDelaySeconds > 0) {
+        await new Promise((r) => setTimeout(r, s.captureDelaySeconds * 1000));
       }
-      const uri = await captureStill(cameraRef.current);
+      const uri = await captureStill(cameraRef.current, s.captureQuality);
       const updated = reshoot
         ? await replaceLastFrame(project, uri)
         : await addFrame(project, uri);
@@ -155,6 +166,7 @@ export default function EditorScreen({ navigation, route }: Props) {
 
   const selected = frames.find((f) => f.id === selectedFrameId);
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
+  const mirror = s.cameraFacing === 'front' && s.mirrorFrontCamera;
 
   return (
     <View style={styles.root}>
@@ -162,28 +174,42 @@ export default function EditorScreen({ navigation, route }: Props) {
         <CameraView
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
-          facing={facing}
-          mirror={facing === 'front'}
-          {...(Platform.OS === 'android' ? { ratio: '16:9' as const } : {})}
+          facing={s.cameraFacing}
+          mirror={mirror}
+          zoom={s.zoom}
+          flash={s.flash}
+          enableTorch={s.enableTorch}
+          ratio={s.cameraRatio}
+          pictureSize={s.pictureSize || undefined}
+          selectedLens={s.selectedLens || undefined}
+          responsiveOrientationWhenOrientationLocked={s.responsiveOrientation}
+          onCameraReady={onCameraReady}
+          onAvailableLensesChanged={onAvailableLensesChanged}
         />
-        {onionUri && opacity > 0 ? (
+        {onionUri && s.onionSkinOpacity > 0 ? (
           <Image
             source={{ uri: onionUri }}
-            style={[StyleSheet.absoluteFill, styles.onion, { opacity }]}
+            style={[StyleSheet.absoluteFill, styles.onion, { opacity: s.onionSkinOpacity }]}
             resizeMode="cover"
           />
         ) : null}
-        {project.settings.showGrid ? (
-          <GridOverlay divisions={project.settings.gridDivisions} />
-        ) : null}
+        {s.showGrid ? <GridOverlay divisions={s.gridDivisions} /> : null}
 
         <View style={[styles.topBar, { top: insets.top + 8 }]}>
-          <Pressable onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))} hitSlop={12}>
+          <Pressable
+            onPress={() =>
+              persistSettings({
+                ...project,
+                settings: {
+                  ...s,
+                  cameraFacing: s.cameraFacing === 'back' ? 'front' : 'back',
+                },
+              })
+            }
+            hitSlop={12}
+          >
             <Ionicons name="camera-reverse" size={26} color="#fff" />
           </Pressable>
-          <Text style={styles.delayLabel}>
-            Задержка {project.settings.captureDelaySeconds.toFixed(1)} с
-          </Text>
           <Pressable onPress={() => setSettingsOpen(true)} hitSlop={12}>
             <Ionicons name="options" size={26} color="#fff" />
           </Pressable>
@@ -207,19 +233,19 @@ export default function EditorScreen({ navigation, route }: Props) {
           <SmallBtn label="Export" disabled={frames.length === 0 || exporting} onPress={onExport} />
         </View>
 
-        <Text style={styles.sliderLabel}>Onion {Math.round(opacity * 100)}%</Text>
+        <Text style={styles.sliderLabel}>Onion {Math.round(s.onionSkinOpacity * 100)}%</Text>
         <MiniSlider
-          value={opacity}
-          onChange={(v) => persistSettings({ ...project, settings: { ...project.settings, onionSkinOpacity: v } })}
+          value={s.onionSkinOpacity}
+          onChange={(v) => persistSettings({ ...project, settings: { ...s, onionSkinOpacity: v } })}
         />
 
-        <Text style={styles.sliderLabel}>FPS {project.settings.fps}</Text>
+        <Text style={styles.sliderLabel}>FPS {s.fps}</Text>
         <MiniSlider
-          value={(project.settings.fps - 1) / 59}
+          value={(s.fps - 1) / 59}
           onChange={(t) =>
             persistSettings({
               ...project,
-              settings: { ...project.settings, fps: Math.round((1 + t * 59) * 2) / 2 },
+              settings: { ...s, fps: Math.round((1 + t * 59) * 2) / 2 },
             })
           }
         />
@@ -247,13 +273,16 @@ export default function EditorScreen({ navigation, route }: Props) {
         </View>
       ) : null}
 
-      <SettingsModal
+      <CameraSettingsModal
         visible={settingsOpen}
         project={project}
+        availableLenses={lenses}
+        availablePictureSizes={pictureSizes}
         onClose={() => setSettingsOpen(false)}
         onSave={async (p) => {
           setProject(await saveProject(p));
           setSettingsOpen(false);
+          setTimeout(() => refreshCameraCaps(cameraRef.current), 300);
         }}
       />
 
@@ -284,63 +313,6 @@ function MiniSlider({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
-function SettingsModal({
-  visible,
-  project,
-  onClose,
-  onSave,
-}: {
-  visible: boolean;
-  project: NonNullable<Awaited<ReturnType<typeof loadProject>>>;
-  onClose: () => void;
-  onSave: (p: typeof project) => void;
-}) {
-  const [local, setLocal] = useState(project);
-  React.useEffect(() => {
-    if (visible) setLocal(project);
-  }, [visible, project]);
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.settingsCard}>
-          <ScrollView>
-            <Text style={styles.settingsTitle}>Настройки</Text>
-            <Text style={styles.sliderLabel}>Задержка съёмки (с)</Text>
-            <MiniSlider
-              value={local.settings.captureDelaySeconds / 30}
-              onChange={(t) =>
-                setLocal({
-                  ...local,
-                  settings: { ...local.settings, captureDelaySeconds: Math.round(t * 300) / 10 },
-                })
-              }
-            />
-            <Text style={styles.settingValue}>{local.settings.captureDelaySeconds.toFixed(1)} с</Text>
-            <Pressable
-              style={styles.toggleRow}
-              onPress={() =>
-                setLocal({ ...local, settings: { ...local.settings, showGrid: !local.settings.showGrid } })
-              }
-            >
-              <Text style={styles.toggleText}>Сетка</Text>
-              <Text style={styles.toggleText}>{local.settings.showGrid ? 'Вкл' : 'Выкл'}</Text>
-            </Pressable>
-          </ScrollView>
-          <View style={styles.modalActions}>
-            <Pressable onPress={onClose}>
-              <Text style={styles.cancel}>Отмена</Text>
-            </Pressable>
-            <Pressable onPress={() => onSave(local)}>
-              <Text style={styles.create}>Сохранить</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0a0a0f' },
   centered: { flex: 1, backgroundColor: '#0a0a0f', justifyContent: 'center', alignItems: 'center', padding: 24 },
@@ -352,14 +324,12 @@ const styles = StyleSheet.create({
   onion: { zIndex: 1 },
   topBar: {
     position: 'absolute',
-    left: 12,
     right: 12,
+    left: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     zIndex: 2,
   },
-  delayLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 12 },
   controls: { paddingTop: 8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 8, marginBottom: 6 },
   smallBtn: {
@@ -402,19 +372,4 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   exportText: { color: '#fff', marginBottom: 12 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  settingsCard: {
-    backgroundColor: '#1a1a24',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-    maxHeight: '50%',
-  },
-  settingsTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  settingValue: { color: '#888', marginLeft: 12, marginBottom: 8 },
-  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 },
-  toggleText: { color: '#fff' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20, marginTop: 12 },
-  cancel: { color: '#888' },
-  create: { color: '#ffeb3b', fontWeight: '600' },
 });

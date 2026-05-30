@@ -3,6 +3,7 @@ import {
   FrameItem,
   StopMotionProject,
   defaultSettings,
+  mergeProjectSettings,
   sortFrames,
 } from '../models/types';
 
@@ -33,7 +34,8 @@ export async function loadProject(id: string): Promise<StopMotionProject | null>
   const info = await FileSystem.getInfoAsync(jsonPath);
   if (!info.exists) return null;
   const raw = await FileSystem.readAsStringAsync(jsonPath);
-  return JSON.parse(raw) as StopMotionProject;
+  const project = JSON.parse(raw) as StopMotionProject;
+  return { ...project, settings: mergeProjectSettings(project.settings) };
 }
 
 export async function loadAllProjects(): Promise<StopMotionProject[]> {
@@ -45,7 +47,8 @@ export async function loadAllProjects(): Promise<StopMotionProject[]> {
     const info = await FileSystem.getInfoAsync(jsonPath);
     if (!info.exists) continue;
     const raw = await FileSystem.readAsStringAsync(jsonPath);
-    projects.push(JSON.parse(raw) as StopMotionProject);
+      const p = JSON.parse(raw) as StopMotionProject;
+      projects.push({ ...p, settings: mergeProjectSettings(p.settings) });
   }
   return projects.sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),

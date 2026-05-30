@@ -1,3 +1,5 @@
+import type { CameraFacing, CameraFlash, CameraRatio } from './cameraTypes';
+
 export type ExportResolution =
   | 'hd720'
   | 'fullHD1080'
@@ -15,8 +17,21 @@ export interface ProjectSettings {
   lockFocus: boolean;
   lockExposure: boolean;
   lockWhiteBalance: boolean;
+  /** Камера */
+  cameraFacing: CameraFacing;
+  cameraRatio: CameraRatio;
+  /** Пустая строка = авто (макс. для ratio) */
+  pictureSize: string;
+  captureQuality: number;
+  zoom: number;
+  flash: CameraFlash;
+  enableTorch: boolean;
+  /** iOS: builtInWideAngleCamera и др. Пусто = системный по умолчанию */
+  selectedLens: string;
+  mirrorFrontCamera: boolean;
+  /** iOS: съёмка в landscape при заблокированном экране */
+  responsiveOrientation: boolean;
 }
-
 export interface FrameItem {
   id: string;
   index: number;
@@ -44,8 +59,22 @@ export const defaultSettings = (): ProjectSettings => ({
   lockFocus: false,
   lockExposure: false,
   lockWhiteBalance: false,
+  cameraFacing: 'back',
+  cameraRatio: '16:9',
+  pictureSize: '',
+  captureQuality: 0.92,
+  zoom: 0,
+  flash: 'off',
+  enableTorch: false,
+  selectedLens: '',
+  mirrorFrontCamera: true,
+  responsiveOrientation: true,
 });
 
+/** Старые project.json без полей камеры */
+export function mergeProjectSettings(partial?: Partial<ProjectSettings>): ProjectSettings {
+  return { ...defaultSettings(), ...partial };
+}
 export function sortFrames(project: StopMotionProject): FrameItem[] {
   return [...project.frames].sort((a, b) => a.index - b.index);
 }
