@@ -2,7 +2,7 @@
   "expo": {
     "name": "StopKadr",
     "slug": "StopKadr",
-    "version": "0.5.6",
+    "version": "0.5.9",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

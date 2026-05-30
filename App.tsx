@@ -40,7 +40,11 @@ export default function App() {
             <Stack.Screen
               name="Playback"
               component={PlaybackScreen}
-              options={{ title: 'Предпросмотр', presentation: 'fullScreenModal' }}
+              options={{
+                title: 'Предпросмотр',
+                presentation: 'fullScreenModal',
+                headerShown: false,
+              }}
             />
           </Stack.Navigator>
         </NavigationContainer>

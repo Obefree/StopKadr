@@ -22,7 +22,7 @@ export const OnionSkinOverlay = React.memo(function OnionSkinOverlay({
     <Image
       source={{ uri }}
       style={[StyleSheet.absoluteFill, { opacity }, mirror && styles.mirror]}
-      resizeMode="cover"
+      resizeMode="stretch"
       fadeDuration={0}
       {...(Platform.OS === 'android' ? { resizeMethod: 'resize' as const } : {})}
     />

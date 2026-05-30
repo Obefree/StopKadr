@@ -1,7 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { expandedFrameUris } from '../store/projectStore';
 import { ExportResolution, StopMotionProject } from '../models/types';
-import { pathForFfmpeg } from '../utils/paths';
+import { ensureFileUri, pathForFfmpeg } from '../utils/paths';
+import { isExpoGo } from '../utils/runtime';
 
 const RESOLUTION_MAP: Record<ExportResolution, { w: number; h: number } | null> = {
   hd720: { w: 1280, h: 720 },
@@ -14,15 +15,25 @@ const RESOLUTION_MAP: Record<ExportResolution, { w: number; h: number } | null> 
 export type ExportProgress = (p: number) => void;
 
 export function exportUnavailableMessage(): string {
+  if (isExpoGo()) {
+    return (
+      'В Expo Go видео не собирается — нет FFmpeg внутри Expo Go.\n\n' +
+      'Варианты:\n' +
+      '• Play — просмотр кадров в приложении\n' +
+      '• Сохранить → ZIP или на ПК\n' +
+      '• Сборка APK на Windows: build-apk-release.bat\n' +
+      '  (в APK кнопка «Видео» сохранит MP4 в галерею)'
+    );
+  }
   return (
-    'Экспорт MP4 недоступен в Expo Go.\n\n' +
-    'Соберите приложение:\n' +
-    '• Android: npm run build:android:preview\n' +
-    '• iOS: eas build -p ios'
+    'FFmpeg недоступен в этой сборке.\n\n' +
+    'Android: build-apk-release.bat\n' +
+    'iOS: eas build -p ios'
   );
 }
 
 export async function isVideoExportAvailable(): Promise<boolean> {
+  if (isExpoGo()) return false;
   try {
     await import('ffmpeg-kit-react-native');
     return true;
@@ -31,20 +42,25 @@ export async function isVideoExportAvailable(): Promise<boolean> {
   }
 }
 
+export async function getVideoExportBlockReason(): Promise<string | null> {
+  if (isExpoGo()) return exportUnavailableMessage();
+  if (!(await isVideoExportAvailable())) return exportUnavailableMessage();
+  return null;
+}
+
 /** Dev build / APK / IPA — не Expo Go. */
 export async function exportProjectToMp4(
   project: StopMotionProject,
   onProgress?: ExportProgress,
 ): Promise<string> {
+  const block = await getVideoExportBlockReason();
+  if (block) throw new Error(block);
+
   let FFmpegKit: typeof import('ffmpeg-kit-react-native').FFmpegKit;
   let ReturnCode: typeof import('ffmpeg-kit-react-native').ReturnCode;
-  try {
-    const mod = await import('ffmpeg-kit-react-native');
-    FFmpegKit = mod.FFmpegKit;
-    ReturnCode = mod.ReturnCode;
-  } catch {
-    throw new Error(exportUnavailableMessage());
-  }
+  const mod = await import('ffmpeg-kit-react-native');
+  FFmpegKit = mod.FFmpegKit;
+  ReturnCode = mod.ReturnCode;
 
   const frames = expandedFrameUris(project);
   if (frames.length === 0) throw new Error('Нет кадров для экспорта.');
@@ -58,7 +74,7 @@ export async function exportProjectToMp4(
 
   for (let i = 0; i < frames.length; i++) {
     const dest = `${workDir}${String(i + 1).padStart(6, '0')}.jpg`;
-    await FileSystem.copyAsync({ from: frames[i], to: dest });
+    await FileSystem.copyAsync({ from: ensureFileUri(frames[i]), to: dest });
     onProgress?.(((i + 1) / frames.length) * 0.5);
   }
 

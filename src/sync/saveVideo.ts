@@ -3,8 +3,7 @@ import { StopMotionProject } from '../models/types';
 import {
   exportProjectToMp4,
   ExportProgress,
-  isVideoExportAvailable,
-  exportUnavailableMessage,
+  getVideoExportBlockReason,
 } from '../export/videoExport';
 import { saveVideoToDevice } from '../utils/mediaSave';
 
@@ -12,9 +11,8 @@ export async function exportAndSaveVideo(
   project: StopMotionProject,
   onProgress?: ExportProgress,
 ): Promise<string> {
-  if (!(await isVideoExportAvailable())) {
-    throw new Error(exportUnavailableMessage());
-  }
+  const block = await getVideoExportBlockReason();
+  if (block) throw new Error(block);
   const path = await exportProjectToMp4(project, onProgress);
   await saveVideoToDevice(path);
   return path;
@@ -24,9 +22,8 @@ export async function exportAndShareVideo(
   project: StopMotionProject,
   onProgress?: ExportProgress,
 ): Promise<string> {
-  if (!(await isVideoExportAvailable())) {
-    throw new Error(exportUnavailableMessage());
-  }
+  const block = await getVideoExportBlockReason();
+  if (block) throw new Error(block);
   const path = await exportProjectToMp4(project, onProgress);
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Обмен файлами недоступен на этом устройстве.');

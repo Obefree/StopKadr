@@ -31,7 +31,9 @@ import { CAMERA_BUILD, EditorCamera, type EditorCameraHandle } from '../camera/E
 import { ThumbSlider } from '../components/ThumbSlider';
 import { StepperControl } from '../components/StepperControl';
 import type { FocusMode } from 'expo-camera';
+import { getVideoExportBlockReason } from '../export/videoExport';
 import { exportAndSaveVideo } from '../sync/saveVideo';
+import { isExpoGo } from '../utils/runtime';
 import { SyncSheet } from '../components/SyncSheet';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
@@ -215,6 +217,11 @@ export default function EditorScreen({ navigation, route }: Props) {
   };
 
   const onExportVideo = async () => {
+    const block = await getVideoExportBlockReason();
+    if (block) {
+      Alert.alert(isExpoGo() ? 'Видео — только в APK' : 'Видео недоступно', block);
+      return;
+    }
     setExporting(true);
     setExportProgress(0);
     try {

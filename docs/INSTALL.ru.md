@@ -8,6 +8,18 @@
 
 ## Быстрый старт (Expo Go — Android и iPhone)
 
+**Windows (bat в папке StopKadr):**
+
+| Файл | Назначение |
+|------|------------|
+| `start-dev.bat` | Только Expo Go (телефон) |
+| `start-dev-pc.bat` | Expo + приёмник на ПК (порт 8792) |
+| `start-dev-offline.bat` | Expo без api.expo.dev (`fetch failed`) |
+
+На рабочем столе: `StopKadr-запуск.bat` → `start-dev-pc.bat`, `StopKadr-Expo.bat` → только Expo.
+
+Если Expo ругается на сеть (`fetch failed`): `start-dev-offline.bat`.
+
 ```powershell
 cd StopKadr
 npm install

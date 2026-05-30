@@ -5,12 +5,12 @@ import type { FocusMode } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
 import type { CameraRatio, CameraFlash, CameraFacing } from '../models/cameraTypes';
 import { ratioAspect } from '../models/cameraTypes';
-import { ANDROID_SENSOR_ASPECT, previewCoverScale } from './androidPreviewCover';
+import { coverCropRect } from './coverCrop';
 import { GridOverlay } from '../components/GridOverlay';
 import { OnionSkinOverlay } from '../components/OnionSkinOverlay';
 import { CameraGestureOverlay } from '../components/CameraGestureOverlay';
 
-export const CAMERA_BUILD = 'frame-wysiwyg-0.5.6';
+export const CAMERA_BUILD = 'frame-wysiwyg-0.5.8-align';
 
 type CameraRef = React.ElementRef<typeof CameraView> | null;
 type Px = { w: number; h: number };
@@ -44,6 +44,10 @@ type Props = {
   selectedLens?: string;
 };
 
+/**
+ * Android: ratio не задаём — CameraX FILL (без доп. scale, иначе зум ≠ снимок).
+ * Снимок: cover-crop + resize в пиксели рамки = то же, что onion cover поверх превью.
+ */
 export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function EditorCamera(
   props,
   ref,
@@ -80,11 +84,6 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
   const frame = useMemo(() => fitShootArea(box.w, box.h, ratio), [box.w, box.h, ratio]);
   const ready = frame.w > 1 && frame.h > 1;
 
-  const androidCover = useMemo(() => {
-    if (!isAndroid || !ready) return 1;
-    return previewCoverScale(frame.w, frame.h, ANDROID_SENSOR_ASPECT);
-  }, [isAndroid, ready, frame.w, frame.h]);
-
   useImperativeHandle(ref, () => ({
     takeFrame: async (quality) => {
       const cam = cameraRef.current;
@@ -99,20 +98,16 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
       const pw = photo.width ?? 0;
       const ph = photo.height ?? 0;
       const { w: fw, h: fh } = shootPx.current;
-      const target = fw >= 2 && fh >= 2 ? fw / fh : ratioAspect(ratio);
       if (pw < 2 || ph < 2) return photo.uri;
-      return centerCropToAspect(photo.uri, pw, ph, target);
+      if (fw < 2 || fh < 2) return cropPhotoToFrameAspect(photo.uri, pw, ph, ratioAspect(ratio));
+      return cropPhotoToFramePixels(photo.uri, pw, ph, fw, fh);
     },
     getCamera: () => cameraRef.current,
   }));
 
   const tag = isAndroid
-    ? `${ratio} · cover · ${CAMERA_BUILD}`
+    ? `${ratio} · fill · ${CAMERA_BUILD}`
     : `${ratio} · ${CAMERA_BUILD}`;
-
-  const cameraStyle = isAndroid
-    ? [StyleSheet.absoluteFill, { transform: [{ scale: androidCover }] }]
-    : StyleSheet.absoluteFill;
 
   return (
     <View
@@ -132,9 +127,9 @@ export const EditorCamera = forwardRef<EditorCameraHandle, Props>(function Edito
         {ready ? (
           <View style={styles.previewClip}>
             <CameraView
-              key={`${facing}-${isAndroid ? 'cover' : ratio}`}
+              key={`${facing}-${isAndroid ? 'fill' : ratio}`}
               ref={cameraRef}
-              style={cameraStyle}
+              style={StyleSheet.absoluteFill}
               active={active}
               mode="picture"
               facing={facing}
@@ -188,37 +183,43 @@ function fitShootArea(boxW: number, boxH: number, ratio: CameraRatio): Px {
   return { w: boxW, h: boxW / aspect };
 }
 
-async function centerCropToAspect(
+async function cropPhotoToFrameAspect(
   uri: string,
   photoW: number,
   photoH: number,
-  targetAspect: number,
+  frameAspect: number,
 ): Promise<string> {
   const actual = photoW / photoH;
-  if (Math.abs(actual - targetAspect) < 0.02) return uri;
+  if (Math.abs(actual - frameAspect) < 0.02) return uri;
+  const crop = coverCropRect(photoW, photoH, frameAspect);
+  const out = await ImageManipulator.manipulateAsync(uri, [{ crop }], {
+    compress: 0.92,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  return out.uri;
+}
 
-  let cropW: number;
-  let cropH: number;
-  let originX: number;
-  let originY: number;
-
-  if (actual > targetAspect) {
-    cropH = photoH;
-    cropW = Math.round(photoH * targetAspect);
-    originX = Math.round((photoW - cropW) / 2);
-    originY = 0;
-  } else {
-    cropW = photoW;
-    cropH = Math.round(photoW / targetAspect);
-    originX = 0;
-    originY = Math.round((photoH - cropH) / 2);
+/** Cover как FILL превью + resize в пиксели рамки — onion совпадает с объективом. */
+async function cropPhotoToFramePixels(
+  uri: string,
+  photoW: number,
+  photoH: number,
+  frameW: number,
+  frameH: number,
+): Promise<string> {
+  const frameAspect = frameW / frameH;
+  const fw = Math.round(frameW);
+  const fh = Math.round(frameH);
+  const ops: ImageManipulator.Action[] = [];
+  const actual = photoW / photoH;
+  if (Math.abs(actual - frameAspect) >= 0.02) {
+    ops.push({ crop: coverCropRect(photoW, photoH, frameAspect) });
   }
-
-  const out = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ crop: { originX, originY, width: cropW, height: cropH } }],
-    { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG },
-  );
+  ops.push({ resize: { width: fw, height: fh } });
+  const out = await ImageManipulator.manipulateAsync(uri, ops, {
+    compress: 0.92,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
   return out.uri;
 }
 
@@ -239,8 +240,6 @@ const styles = StyleSheet.create({
   previewClip: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   tag: {
     position: 'absolute',

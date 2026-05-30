@@ -1,28 +1,34 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
-  LayoutChangeEvent,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { expandedFrameUris, loadProject } from '../store/projectStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Playback'>;
 
+const imageProps =
+  Platform.OS === 'android'
+    ? { fadeDuration: 0 as const, resizeMethod: 'resize' as const }
+    : { fadeDuration: 0 as const };
+
 export default function PlaybackScreen({ navigation, route }: Props) {
   const { projectId } = route.params;
+  const insets = useSafeAreaInsets();
   const [uris, setUris] = useState<string[]>([]);
-  const [index, setIndex] = useState(0);
+  const [targetIndex, setTargetIndex] = useState(0);
+  const [shownIndex, setShownIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [fps, setFps] = useState(12);
-  /** Держим предыдущий кадр, пока следующий не в кэше — без чёрных вспышек */
-  const [visibleUri, setVisibleUri] = useState<string | null>(null);
-  const [scrubWidth, setScrubWidth] = useState(300);
-  const prefetching = useRef(false);
+  const [preloaded, setPreloaded] = useState(false);
+  const prefetchGen = useRef(0);
 
   useEffect(() => {
     loadProject(projectId).then((p) => {
@@ -30,86 +36,75 @@ export default function PlaybackScreen({ navigation, route }: Props) {
       setFps(Math.max(1, p.settings.fps));
       const list = expandedFrameUris(p);
       setUris(list);
-      setIndex(0);
-      if (list.length === 0) {
-        setVisibleUri(null);
-        return;
-      }
-      prefetching.current = true;
-      Promise.all(list.map((u) => Image.prefetch(u)))
-        .catch(() => {})
-        .finally(() => {
-          prefetching.current = false;
-          setVisibleUri(list[0]);
-        });
+      setTargetIndex(0);
+      setShownIndex(0);
+      setPreloaded(false);
     });
   }, [projectId]);
 
   useEffect(() => {
-    const uri = uris[index];
+    if (uris.length === 0) return;
+    const gen = ++prefetchGen.current;
+    setPreloaded(false);
+    (async () => {
+      const unique = [...new Set(uris)];
+      await Promise.all(unique.map((u) => Image.prefetch(u).catch(() => false)));
+      if (prefetchGen.current === gen) setPreloaded(true);
+    })();
+  }, [uris]);
+
+  useEffect(() => {
+    const uri = uris[targetIndex];
     if (!uri) return;
-    if (uri === visibleUri) return;
     let active = true;
     Image.prefetch(uri)
-      .catch(() => {})
+      .catch(() => false)
       .finally(() => {
-        if (active) setVisibleUri(uri);
+        if (active) setShownIndex(targetIndex);
       });
     return () => {
       active = false;
     };
-  }, [index, uris]);
+  }, [targetIndex, uris]);
 
   useEffect(() => {
-    if (!playing || uris.length === 0) return;
+    if (!playing || uris.length === 0 || !preloaded) return;
+    const ms = Math.max(50, 1000 / fps);
     const id = setInterval(() => {
-      setIndex((i) => (i + 1 < uris.length ? i + 1 : 0));
-    }, 1000 / fps);
+      setTargetIndex((i) => (i + 1 < uris.length ? i + 1 : 0));
+    }, ms);
     return () => clearInterval(id);
-  }, [playing, uris.length, fps]);
+  }, [playing, uris.length, fps, preloaded]);
 
-  const onScrubLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0) setScrubWidth(w);
-  };
+  const shownUri = uris[shownIndex] ?? null;
 
   return (
     <View style={styles.root}>
-      {visibleUri ? (
-        <Image source={{ uri: visibleUri }} style={styles.image} resizeMode="contain" />
-      ) : uris.length === 0 ? (
+      {uris.length === 0 ? (
         <Text style={styles.empty}>Нет кадров</Text>
+      ) : shownUri ? (
+        <Image
+          source={{ uri: shownUri }}
+          style={styles.image}
+          resizeMode="contain"
+          {...imageProps}
+        />
       ) : (
         <View style={styles.image} />
       )}
-      <View style={styles.bar}>
-        <Pressable onPress={() => navigation.goBack()}>
+
+      <View style={[styles.bar, { paddingBottom: 12 + insets.bottom }]}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
           <Text style={styles.btn}>Закрыть</Text>
         </Pressable>
-        <Pressable onPress={() => setPlaying((p) => !p)}>
+        <Pressable onPress={() => setPlaying((p) => !p)} hitSlop={12}>
           <Text style={styles.btn}>{playing ? 'Пауза' : 'Play'}</Text>
         </Pressable>
         <Text style={styles.counter}>
-          {uris.length ? index + 1 : 0}/{uris.length}
+          {uris.length ? shownIndex + 1 : 0}/{uris.length}
+          {!preloaded ? ' · …' : ''}
         </Text>
       </View>
-      <Pressable
-        style={styles.scrub}
-        onLayout={onScrubLayout}
-        onPress={(e) => {
-          if (!uris.length) return;
-          const x = e.nativeEvent.locationX;
-          const next = Math.floor((x / scrubWidth) * uris.length);
-          setIndex(Math.min(uris.length - 1, Math.max(0, next)));
-        }}
-      >
-        <View
-          style={[
-            styles.scrubFill,
-            { width: uris.length ? `${((index + 1) / uris.length) * 100}%` : '0%' },
-          ]}
-        />
-      </Pressable>
     </View>
   );
 }
@@ -122,17 +117,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    backgroundColor: '#0a0a0f',
   },
   btn: { color: '#ffeb3b', fontSize: 16 },
-  counter: { color: '#aaa' },
-  scrub: {
-    height: 6,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    backgroundColor: '#333',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  scrubFill: { height: '100%', backgroundColor: '#ffeb3b' },
+  counter: { color: '#aaa', fontSize: 14 },
 });
