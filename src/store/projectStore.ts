@@ -112,9 +112,22 @@ export async function replaceLastFrame(
 ): Promise<StopMotionProject> {
   const last = sortFrames(project).at(-1);
   if (!last) return addFrame(project, imageUri);
-  const dest = frameUri(project.id, last.imagePath);
+  return replaceFrame(project, last, imageUri);
+}
+
+export async function replaceFrame(
+  project: StopMotionProject,
+  frame: FrameItem,
+  imageUri: string,
+): Promise<StopMotionProject> {
+  const dest = frameUri(project.id, frame.imagePath);
   await FileSystem.copyAsync({ from: imageUri, to: dest });
-  return saveProject(project);
+  return saveProject({
+    ...project,
+    frames: project.frames.map((f) =>
+      f.id === frame.id ? { ...f, createdAt: new Date().toISOString() } : f,
+    ),
+  });
 }
 
 export async function deleteFrame(
